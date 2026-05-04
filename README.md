@@ -208,6 +208,9 @@ case, timestamp, AV_sp, challenger_sp, v_final, delta_v_AV, delta_v_challenger
 ```bash
 python calculate_injury_risks.py
 ```
+### ⚙️ What it does
+
+* Calculates injury risks using the CISS injury model for each case in `cases_file`.
 
 ### 📌 Requirements
 
@@ -216,13 +219,13 @@ python calculate_injury_risks.py
 
 ### 🔧 Config
 
-* Set output filename/path inside the script (e.g., `output_csv`)
+* Set `cases_file` to the location of your `master_cases.xlsx` file (the file generated from Step 4)
 * Note: The current implementation uses `edr_total_delta_v_kmph` from the scraped dataset as `delta_v`. To use a different source (e.g., the calculated `delta_v` from Step 4 simulation output), update the line:
 `'delta_v': row['edr_total_delta_v_kmph']` to read from the file or field containing your desired delta_v values.
 
 ### 📤 Output
 
-CSV with fields such as:
+`injury_risk_calculations.csv` inside the `injury_risk_outputs` folder with fields such as:
 
 ```
 cirenid, category, age_yr, gender, height, weight, bmi, delta_v,
