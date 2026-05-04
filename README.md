@@ -220,7 +220,7 @@ python calculate_injury_risks.py
 ### 🔧 Config
 
 * Set `cases_file` to the location of your `master_cases.xlsx` file (the file generated from Step 4)
-* Note: The current implementation uses `edr_total_delta_v_kmph` from the scraped dataset as `delta_v`. To use a different source (e.g., the calculated `delta_v` from Step 4 simulation output), update the line:
+* Note: The current implementation uses `edr_total_delta_v_kmph` from the scraped dataset as `delta_v`. To use a different source (e.g., the calculated `delta_v`s from Step 5), update the line:
 `'delta_v': row['edr_total_delta_v_kmph']` to read from the file or field containing your desired delta_v values.
 
 ### 📤 Output
