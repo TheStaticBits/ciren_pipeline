@@ -193,7 +193,7 @@ where range is the number of simulation csv files you have in `folder`.
 
 ### 📤 Output
 
-CSV with columns:
+`delta_v_results.csv` file with columns:
 
 ```
 case, timestamp, AV_sp, challenger_sp, v_final, delta_v_AV, delta_v_challenger
