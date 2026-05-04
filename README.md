@@ -22,7 +22,9 @@ This project implements a 6-stage pipeline to process CIREN crash data, classify
 ### ▶️ Run
 
 ```bash
+# navigate to ciren_database directory
 cd ciren_database
+# run python script
 python scrape.py
 ```
 
@@ -33,6 +35,7 @@ python scrape.py
 ### 🔧 Config (`scrape.py`)
 
 * `DOWNLOAD_FOLDER`: folder where downloaded files are saved
+* `cirenids`: the ciren case ids you would like to scrape
 
 ### 📤 Output
 
@@ -67,6 +70,7 @@ python scrape_summary.py
 
 * `OUTPUT_FILE`: output Excel file path
 * `DOWNLOAD_FOLDER`: only affects Chrome download preferences (can be any existing folder)
+* `cirenids`: the ciren case ids you would like to scrape
 
 ### 📤 Output
 
@@ -159,6 +163,10 @@ Master Excel file containing:
 ### ▶️ Run
 
 ```bash
+# navigate to ciren directory
+cd ..
+cd ciren
+# run python script
 python process_csv.py
 ```
 
@@ -173,7 +181,6 @@ Update before running:
 
 * Input folder path `folder` containing your simulation csv files (0.csv, 1.csv, etc.)
 * Vehicle masses:
-
   * `m_av`
   * `m_ch`
 * File loop range:
@@ -210,7 +217,7 @@ python calculate_injury_risks.py
 
 * Set output filename/path inside the script (e.g., `output_csv`)
 * Note: The current implementation uses `edr_total_delta_v_kmph` from the scraped dataset as `delta_v`. To use a different source (e.g., the calculated `delta_v` from Step 4 simulation output), update the line:
-'delta_v': row['edr_total_delta_v_kmph'] to read from the file or field containing your desired delta_v values.
+`'delta_v': row['edr_total_delta_v_kmph']` to read from the file or field containing your desired delta_v values.
 
 ### 📤 Output
 
