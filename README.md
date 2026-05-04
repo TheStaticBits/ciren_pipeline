@@ -215,7 +215,7 @@ python calculate_injury_risks.py
 ### 📌 Requirements
 
 * `CISS_injury_models_20210415.xlsx` must be in the same directory
-* Input dataset must match expected schema
+* Input dataset must match expected schema (if you are using master_cases.xlsx you do not need to change anything)
 
 ### 🔧 Config
 
