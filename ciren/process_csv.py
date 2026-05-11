@@ -14,12 +14,19 @@ def process_csv(folder: Path, cases: int, verbose: bool, m_av: int=1500, m_ch: i
 
         csv_path = folder / f"{i}.csv"
         df = pd.read_csv(csv_path)
+
         last = df.iloc[-1]   # last row
+        timestamp = last["timestamp"]
+
+        # find first row from last that does not have a timestamp of 0
+        for i in range(df.size):
+            if timestamp != 0: break
+            last = df.iloc[-1 - i]
+            timestamp = last["timestamp"]
         
         # extract speeds
         v_av = last["AV sp"]
         v_ch = last["challenger sp"]
-        timestamp = last["timestamp"]
         
         # conservation of momentum
         v_final = (m_av * v_av + m_ch * v_ch) / (m_av + m_ch)
