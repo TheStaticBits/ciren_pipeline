@@ -164,32 +164,30 @@ Master Excel file containing:
 ### ▶️ Run
 
 ```bash
-# navigate to ciren directory
-cd ..
 cd ciren
-# run python script
-python process_csv.py
+python process_csv.py --cases 1 --input_folder "~/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test/output/Autoware.Universe/test_data/test_round_1/lane_departure_opposite" --verbose
 ```
 
 ### ⚙️ What it does
 
-* Processes simulation CSVs
+* Processes simulation CSV files named `0.csv`, `1.csv`, and so on inside the input folder
 * Computes collision delta-V assuming **perfectly inelastic collision**
 
-### 🔧 Config (`process_csv.py`)
+### 🔧 CLI (`process_csv.py`)
 
-Update before running:
+Required arguments:
 
-* Input folder path `folder` containing your simulation csv files (0.csv, 1.csv, etc.)
-* Vehicle masses:
-  * `m_av`
-  * `m_ch`
-* File loop range:
+* `-i` / `--input_folder`: folder containing the simulation CSV files
+* `-c` / `--cases`: number of CSV files to process
+* `-v` / `--verbose`: optional flag that prints progress while processing
+
+Example:
 
 ```python
-for i in range(...)
+python process_csv.py --cases 1 --input_folder "~/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test/output/Autoware.Universe/test_data/test_round_1/lane_departure_opposite"
 ```
-where range is the number of simulation csv files you have in `folder`.
+
+Default vehicle masses are set in `process_csv.py` at `m_av=1500` and `m_ch=1500`. If you need different masses, update the function defaults in the script.
 
 ### 📤 Output
 
