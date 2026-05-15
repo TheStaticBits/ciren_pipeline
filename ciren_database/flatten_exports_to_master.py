@@ -20,6 +20,7 @@ DEFAULT_INPUT = Path(rf"D:\UMich\Senior Year\umtri\clean\ciren_database\CrashExp
 DEFAULT_CATEGORIZED = Path(rf"D:\UMich\Senior Year\umtri\clean\ciren_database\ciren_crash_summaries_categorized.xlsx")  # xlsx file containing the categorized cases
 DEFAULT_OUTPUT = Path(rf"D:\UMich\Senior Year\umtri\clean\ciren_database\master_cases.xlsx")  # output file from running this script
 
+
 def _safe(v: Any) -> Any:
     if pd.isna(v):
         return None
@@ -360,7 +361,19 @@ def build_master(
     return df
 
 
-def main() -> None:
+def main(input_folder: Path, output_file: Path, input_categorized: Path, start_index: int, max_files: int, checkpoint_every: int) -> None:
+    df = build_master(
+        input_folder,
+        output_file,
+        categorized_file=input_categorized,
+        start_index=start_index,
+        max_files=max_files,
+        checkpoint_every=checkpoint_every,
+    )
+    print(f"\Flattened {len(df)} rows to {output_file} masterfile")
+
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Flatten CrashExport xlsx files into one-row-per-case master sheet.")
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT, help="Folder containing CrashExport-*.xlsx files")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Output xlsx path for master sheet")
@@ -370,16 +383,4 @@ def main() -> None:
     parser.add_argument("--checkpoint-every", type=int, default=25, help="Write checkpoint workbook every N files")
     args = parser.parse_args()
 
-    df = build_master(
-        args.input,
-        args.output,
-        categorized_file=args.categorized,
-        start_index=args.start_index,
-        max_files=args.max_files,
-        checkpoint_every=args.checkpoint_every,
-    )
-    print(f"\nWrote {len(df)} rows to {args.output}")
-
-
-if __name__ == "__main__":
-    main()
+    main(args.input, args.output, args.categorized, args.start_index, args.max_files, args.checkpoint_every)

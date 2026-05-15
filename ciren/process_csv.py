@@ -4,7 +4,7 @@ from pathlib import Path
 
 # folder must contain case CSVs. Usually in Driver-Licensing-Test/output/test-data/test-round-[N]/[test-name]
 # optionally, set masses (kg) of AV and challenger
-def process_csv(folder: Path, cases: int, verbose: bool, m_av: int=1500, m_ch: int=1500) -> list:
+def process_csv(folder: Path, cases: int, verbose: bool, m_av: int, m_ch: int) -> list:
     results = []
 
     if verbose: print(f"Processing {cases} cases from {folder}.")
@@ -51,17 +51,23 @@ def process_csv(folder: Path, cases: int, verbose: bool, m_av: int=1500, m_ch: i
     return results
 
 
-if __name__ == "__main__":
-    # Example command: python process_csv.py --cases 1 --input_folder "~/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test/output/Autoware.Universe/test_data/test_round_1/left_turn_straight" 
-    parser = argparse.ArgumentParser("Processes crash CSVs and finds change in velocity. Outputs to delta_v_results.csv.")
-    parser.add_argument("-i", "--input_folder", help="Folder that contains simulation CSV output files.")
-    parser.add_argument("-c", "--cases", help="Number of cases to parse in the input folder.")
-    parser.add_argument("-v", "--verbose", help="Sets the program to output statuses as it processses.", action="store_true")
-    args = parser.parse_args()
-
+def main(input: Path, cases: int, verbose: bool, m_av: int, m_ch: int):
     # process CSV files
-    results = process_csv(folder=Path(args.input_folder), cases=int(args.cases), verbose=args.verbose)
+    results = process_csv(input, cases, verbose, m_av, m_ch)
 
     # combine all cases into one dataframe and save to output file
     results_df = pd.DataFrame(results)
     results_df.to_csv("delta_v_results.csv", index=False)
+
+
+if __name__ == "__main__":
+    # Example command: python process_csv.py --cases 1 --input "~/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test/output/Autoware.Universe/test_data/test_round_1/left_turn_straight" 
+    parser = argparse.ArgumentParser("Processes crash CSVs and finds change in velocity. Outputs to delta_v_results.csv.")
+    parser.add_argument("-i", "--input", type=Path, help="Folder that contains simulation CSV output files.")
+    parser.add_argument("-c", "--cases", type=int, help="Number of cases to parse in the input folder.")
+    parser.add_argument("-mav", "--m-av", type=int, help="Mass of AV.")
+    parser.add_argument("-mch", "--m-ch", type=int, help="Mass of challenger.")
+    parser.add_argument("-v", "--verbose", help="Sets the program to output statuses as it processses.", action="store_true")
+    args = parser.parse_args()
+
+    main(args.input, args.cases, args.verbose, args.m_av, args.m_ch)

@@ -1,0 +1,40 @@
+# ---- Generate mastercases.xlsx from CIREN data chosen ----
+# 1. Take in a list of all new cases to generate a MasterCases file of
+# 2. Run scrape.py to scrape new cases -- outputs Crash Files to CrashExports folder
+# 3. Run scrape_summaries.py to scrape summary of cases. Potentially add PDFs of the cases here for the LLM?
+# 4. Tweak LLM categorization into the 14 cases -- make sure to filter out all bad cases. Then output to ciren_crash_summaries_categorized.xlsx
+# 5. Run flatten_exports_to_master.py, outputting the data to the master_cases.xlsx file.
+
+import ciren_database.scrape as scrape
+import ciren_database.scrape_summary as scrape_summary
+import ciren_database.llm_categorize as llm_categorize
+import ciren_database.flatten_exports_to_master as flatten
+
+def gen_master_cases(case_nums: list[int]):
+    # 1. Run scrape.py
+    print("1. Scraping crashes...")
+    scrape.main("ciren_database/CrashExports", case_nums)
+    print("1. Scraping crashes complete!")
+
+    # 2. Run scrape_summaries.py
+    print("2. Scraping crash summaries...")
+    scrape_summary.main("ciren_database/CrashExports", "ciren_database/ciren_crash_summaries.xlsx", case_nums)
+    print("2. Scraping crash summaries complete!")
+
+    # 3. Use LLM API to categorize into one of the 14 available, filtering out bad cases
+    # TODO
+    print("3. Categorizing crashes...")
+    llm_categorize.main("ciren_database/ciren_crash_summaries_categorized.xlsx", case_nums)
+    print("3. Categorizing crashes complete!")
+
+    # 4. Run flatten_exports_to_master.py, excluding cases that were not categorized in step 3
+    print("4. Flattening crash data into master file...")
+    flatten.main("ciren_database/CrashExports", "ciren_database/master_cases.xlsx", "ciren_database/ciren_crash_summaries_categorized.xlsx", 0, None, 25)
+    print("4. Finished flattening crash data!")
+
+    
+
+
+
+if __name__ == "__main__":
+    gen_master_cases()
