@@ -201,17 +201,21 @@ def flatten_one_file(xlsx_path: Path) -> dict[str, Any]:
     )
 
     gv_local = _pick_series_for_veh(gv, vehno)
+    gv_oppose = _pick_series_for_veh(gv, 2 if vehno == 1 else 1)
     vs_local = _pick_series_for_veh(vehspec, vehno)
 
     # Vehicle-centric fields for case vehicle
     curb = _pick(gv_local, "CURBWT")
     curb_f = _to_float(curb)
+    curb_oppose = _pick(gv_oppose, "CURBWT")
+    curb_oppose_f = _to_float(curb_oppose)
     row.update(
         {
             "vehicle_make": _pick(gv_local, "MAKETEXT") or _pick(gv_local, "MAKE"),
             "vehicle_model": _pick(gv_local, "MODELTEXT") or _pick(gv_local, "MODEL"),
             "vehicle_model_year": _pick(gv_local, "MODELYR"),
             "vehicle_curb_weight_kg": round(curb_f, 1) if curb_f is not None else None,
+            "challenger_curb_weight_kg": round(curb_oppose_f, 1) if curb_oppose_f is not None else None,
             "vehicle_wheelbase_cm": _pick(vs_local, "WHEELBASE"),
             "vehicle_track_width_cm": _pick(vs_local, "TRACKWIDTH"),
             "vehicle_overall_length_cm": _pick(vs_local, "OAL"),
@@ -324,7 +328,7 @@ def build_master(
     start_index: int = 0,
     max_files: int | None = None,
     checkpoint_every: int = 25,
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, list[int]]:
     xlsx_files = sorted(input_dir.glob("CrashExport-*.xlsx"))
     if not xlsx_files:
         raise FileNotFoundError(f"No CrashExport-*.xlsx files found in {input_dir}")
@@ -337,12 +341,15 @@ def build_master(
     allowed_ids = set(allowed["cirenid"])
 
     rows = []
+    successful_ciren_ids: list[int] = []
     for i, xlsx in enumerate(xlsx_files, start=1):
         print(f"[{i}/{len(xlsx_files)}] {xlsx.name}")
         row = flatten_one_file(xlsx)
         cirenid_str = str(row.get("cirenid")) if row.get("cirenid") is not None else None
         if cirenid_str not in allowed_ids:
             continue
+        else:
+            successful_ciren_ids.append(int(cirenid_str))
 
         match = allowed.loc[allowed["cirenid"] == cirenid_str].iloc[0]
         row["crash_summary"] = match["crash_summary"]
@@ -358,11 +365,12 @@ def build_master(
     df = df.sort_values(["cirenid", "caseid"], na_position="last").reset_index(drop=True)
     output_file.parent.mkdir(parents=True, exist_ok=True)
     df.to_excel(output_file, index=False)
-    return df
+    return (df, successful_ciren_ids)
 
 
-def main(input_folder: Path, output_file: Path, input_categorized: Path, start_index: int, max_files: int, checkpoint_every: int) -> None:
-    df = build_master(
+# returns successful ciren case IDs
+def main(input_folder: Path, output_file: Path, input_categorized: Path, start_index: int, max_files: int, checkpoint_every: int) -> list[int]:
+    df, successful_ids = build_master(
         input_folder,
         output_file,
         categorized_file=input_categorized,
@@ -371,6 +379,7 @@ def main(input_folder: Path, output_file: Path, input_categorized: Path, start_i
         checkpoint_every=checkpoint_every,
     )
     print(f"\Flattened {len(df)} rows to {output_file} masterfile")
+    return successful_ids
 
 
 if __name__ == "__main__":

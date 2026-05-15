@@ -98,7 +98,8 @@ def navigate_with_retries(driver: webdriver.Chrome, url: str, retries: int = MAX
     return False
 
 
-def main(input_folder: Path, output_file: Path, ciren_ids: list[int]) -> None:
+# returns cases that were successfully scraped
+def main(input_folder: Path, output_file: Path, ciren_ids: list[int]) -> list[int]:
     if os.path.exists(output_file):
         wb = load_workbook(output_file)
         ws = wb.active
@@ -108,6 +109,7 @@ def main(input_folder: Path, output_file: Path, ciren_ids: list[int]) -> None:
         ws.append(["cirenid", "crash_summary"])
 
 
+    successful_cases: list[int] = []
     driver = build_driver(input_folder)
     try:
         for case_id in ciren_ids:
@@ -116,8 +118,6 @@ def main(input_folder: Path, output_file: Path, ciren_ids: list[int]) -> None:
 
             ok = navigate_with_retries(driver, case_url)
             if not ok:
-                ws.append([case_id, ""])
-                wb.save(output_file)
                 print("  Skipped after navigation retries")
                 try:
                     driver.quit()
@@ -130,23 +130,24 @@ def main(input_folder: Path, output_file: Path, ciren_ids: list[int]) -> None:
                 time.sleep(1.0)
                 raw_text = copy_page_text(driver)
                 crash_summary = extract_crash_summary_from_clipboard(raw_text)
-                ws.append([case_id, crash_summary])
                 if crash_summary:
                     print(f"  Extracted summary ({len(crash_summary)} chars)")
+                    ws.append([case_id, crash_summary])
+                    wb.save(output_file)
+                    successful_cases.append(case_id)
                 else:
                     print("  Crash summary not found")
             except Exception as exc:
                 print(f"  Error extracting summary: {exc}")
-                ws.append([case_id, ""])
 
-            wb.save(output_file)
     finally:
         try:
             driver.quit()
         except Exception:
             pass
 
-    print(f"Done. Results saved to {output_file}")
+    print(f"Done scraping summaries. Results saved to {output_file}. \nCrash summaries were unable to be found for {len(ciren_ids) - len(successful_cases)} cases.")
+    return successful_cases
 
 
 if __name__ == "__main__":

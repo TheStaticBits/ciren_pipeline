@@ -7,7 +7,7 @@
 
 import ciren_database.scrape as scrape
 import ciren_database.scrape_summary as scrape_summary
-import ciren_database.llm_categorize as llm_categorize
+import ciren_database.categorize as categorize
 import ciren_database.flatten_exports_to_master as flatten
 
 def gen_master_cases(case_nums: list[int]):
@@ -16,15 +16,18 @@ def gen_master_cases(case_nums: list[int]):
     scrape.main("ciren_database/CrashExports", case_nums)
     print("1. Scraping crashes complete!")
 
-    # 2. Run scrape_summaries.py
+    # Filter out cases that do not involve 2 vehicles.
+    case_nums = categorize.filter_num_vehicles("ciren_database/CrashExports", case_nums)
+
+    # 2. Run scrape_summaries.py on the rest of the cases
     print("2. Scraping crash summaries...")
-    scrape_summary.main("ciren_database/CrashExports", "ciren_database/ciren_crash_summaries.xlsx", case_nums)
+    case_nums = scrape_summary.main("ciren_database/CrashExports", "ciren_database/ciren_crash_summaries.xlsx", case_nums)
     print("2. Scraping crash summaries complete!")
 
     # 3. Use LLM API to categorize into one of the 14 available, filtering out bad cases
     # TODO
     print("3. Categorizing crashes...")
-    llm_categorize.main("ciren_database/ciren_crash_summaries_categorized.xlsx", case_nums)
+    categorize.main("ciren_database/ciren_crash_summaries_categorized.xlsx", case_nums)
     print("3. Categorizing crashes complete!")
 
     # 4. Run flatten_exports_to_master.py, excluding cases that were not categorized in step 3
@@ -32,9 +35,8 @@ def gen_master_cases(case_nums: list[int]):
     flatten.main("ciren_database/CrashExports", "ciren_database/master_cases.xlsx", "ciren_database/ciren_crash_summaries_categorized.xlsx", 0, None, 25)
     print("4. Finished flattening crash data!")
 
-    
-
-
 
 if __name__ == "__main__":
-    gen_master_cases()
+    with open("input_cases.txt", "r") as file:
+        ciren_ids = file.read().split(" ")
+        gen_master_cases(ciren_ids)
