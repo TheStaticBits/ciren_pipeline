@@ -54,7 +54,7 @@ def gen_single_params(row) -> dict[str, float]:
         params["dis"] = 5     # adjust
         params["angle"] = 90  # adjust
     else:
-        print(f"[WARNING] {row.scenario} scenarios are currently not simulated (case {row.cirenid}). This case was ignored.")
+        print(f"[WARNING] {row.scenario} scenarios are currently not simulated (case {row.cirenid})")
     
     return params
 
@@ -70,7 +70,9 @@ def gen_case_parameters(output: Path, master_cases_file: Path, dlt_path: Path) -
         # get metadata for each row
         row_dict: dict = { "case": row.cirenid, "type": row.scenario }
         row_dict["parameters"] = gen_single_params(row)
-        data.append(row_dict)
+        
+        if len(row_dict["parameters"]) > 1: # don't add if scenario is not supported
+            data.append(row_dict)
 
     # output to file
     with open(output, "w") as file:
