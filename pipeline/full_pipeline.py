@@ -21,4 +21,4 @@
 # 8. Run statistical analysis on the difference in injury risks from a human driver compared to an automatic vehicle.
 
 import pipeline.gen_mastercases
-
+import pipeline.gen_injuryanalysis

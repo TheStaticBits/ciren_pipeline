@@ -1,0 +1,1 @@
+# make sure to delete record.csv before each run to check properly if a collision has occured
