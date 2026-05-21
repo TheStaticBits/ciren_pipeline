@@ -7,10 +7,10 @@ import pandas as pd
 from pathlib import Path
 
 def _check_null(val) -> float:
-    return 0 if val else val
+    return 0 if pd.isna(val) else val
 
 def _kmph_to_mps(val: float) -> float:
-    return val / 3.6
+    return round(val / 3.6, 2)
 
 def _insert(s: str, val: str, index: int) -> str:
     return s[:index] + val + s[index:]
@@ -68,7 +68,7 @@ def gen_case_parameters(output: Path, master_cases_file: Path, dlt_path: Path) -
     master = pd.read_excel(master_cases_file)
     for row in master.itertuples():
         # get metadata for each row
-        row_dict: dict = { "case": row.cirenid, "type": row.scenario }
+        row_dict: dict = { "cirenid": row.cirenid, "type": row.scenario }
         row_dict["parameters"] = gen_single_params(row)
         
         if len(row_dict["parameters"]) > 1: # don't add if scenario is not supported
