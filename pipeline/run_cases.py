@@ -4,10 +4,10 @@ import os, json, subprocess
 import pandas as pd
 from pathlib import Path
 
-import pipeline.edit_speed as edit_speed
-import pipeline.process_csv as process_csv
+import edit_speed as edit_speed
+import process_csv as process_csv
 
-def run_cases(params_json: Path, master_cases_file: Path, dlt_path: Path, verbose: bool) -> pd.DataFrame:
+def run_cases(params_json: Path, master_cases_file: Path, dlt_path: Path, verbose: bool) -> list:
     delta_v_frames: list = []
     skipped: list[int] = [] # list of the cirenid of skipped cases
 
@@ -41,7 +41,7 @@ def run_cases(params_json: Path, master_cases_file: Path, dlt_path: Path, verbos
         
         # set parameters in the DLT file
         if verbose: print(" - Setting parameters file...")
-        for key, val in case["parameters"]:
+        for key, val in case["parameters"].items():
             param_file["low"][0][key] = val
         
         # delete record.csv so we can see if a crash has occurred properly
@@ -82,6 +82,16 @@ def run_cases(params_json: Path, master_cases_file: Path, dlt_path: Path, verbos
 
         print(f"- Finished {case["cirenid"]}!")
 
+    return delta_v_frames
+
+
+def main():
+    result = run_cases("pipeline/outputs/case_parameters.json", "./ciren_database/master_cases.xlsx", "/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test", True)
+    
+    # save to csv
+    results_df = pd.DataFrame(result)
+    results_df.to_csv("pipeline/outputs/delta_v_results.csv", index=False)
+
 
 if __name__ == "__main__":
-    run_cases("pipeline/case_parameters.json", "./ciren_database/master_cases.xlsx", "~/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test", True)
+    main()
