@@ -1,5 +1,5 @@
 [
-	{"cirenid": 11, "type": "lane_departure_opposite", "parameters": {"max_speed": 19.61, "relative sp": 44.33, "dis": 40, "ratio": 1}},
+	{"cirenid": 11, "type": "lane_departure_opposite", "parameters": {"max_speed": 19.61, "relative sp": 30.33, "dis": 47, "ratio": 1}},
  	{"cirenid": 15, "type": "lane_departure_same", "parameters": {"max_speed": 36.23, "relative sp": 2, "dis": 5, "ratio": 0.7}},
  	{"cirenid": 16, "type": "cut_in", "parameters": {"max_speed": 31.67, "relative sp": 2, "dis": 10, "ratio": 1}},
  	{"cirenid": 19, "type": "left_turn_turn", "parameters": {"max_speed": 6.44, "dis": 5, "sp": 15.56}},

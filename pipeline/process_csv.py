@@ -13,7 +13,7 @@ def process_csv(folder: Path, cirenid: int, cases: int, verbose: bool, m_av: int
     for i in range(cases):
         if verbose: print(f"\nProcessing case {i}...")
 
-        csv_path = folder / f"{i}.csv"
+        csv_path = f"{folder}/{i}.csv"
         df = pd.read_csv(csv_path)
 
         last = df.iloc[-1]   # last row

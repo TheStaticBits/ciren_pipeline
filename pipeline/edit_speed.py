@@ -6,7 +6,7 @@ def get_prev_max_speed(root) -> float:
     for edge in root.findall('edge'):
         for lane in edge.findall('lane'):
             current_speed = float(lane.get('speed'))
-            if(current_speed>max_speed):
+            if(current_speed > max_speed):
                 max_speed = current_speed
 
     return max_speed

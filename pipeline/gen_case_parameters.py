@@ -23,36 +23,36 @@ def gen_single_params(row) -> dict[str, float]:
     params["max_speed"] = _kmph_to_mps(_check_null(row.edr_impact_speed_kmph))
 
     if row.scenario == "cut_in": # TODO. The parameters here are not easily dependent on the case.
-        params["relative sp"] = 2
-        params["dis"] = 10
-        params["ratio"] = 1
+        params["relative sp"] = 2 # adjust
+        params["dis"] = 10        # adjust
+        params["ratio"] = 1       # adjust
     elif row.scenario == "car_following":
         params["sp"] = _kmph_to_mps(row.edr_impact_speed_kmph) # use impact speed
-        params["acc"] = 3
-        params["dec"] = -4
+        params["acc"] = 3         # adjust
+        params["dec"] = -4        # adjust
     elif row.scenario == "lane_departure_same": # TODO. Similar to cut_in
-        params["relative sp"] = 2
-        params["dis"] = 5
-        params["ratio"] = 0.7
+        params["relative sp"] = 2 # adjust
+        params["dis"] = 5         # adjust
+        params["ratio"] = 0.7     # adjust
     elif row.scenario == "lane_departure_opposite":
         params["relative sp"] = _kmph_to_mps(_check_null(row.road_speed_limit_kmph)) + _kmph_to_mps(_check_null(row.edr_impact_speed_kmph))
-        params["dis"] = 40    # adjust
-        params["ratio"] = 1   # adjust
+        params["dis"] = 40        # adjust
+        params["ratio"] = 1       # adjust
     elif row.scenario == "left_turn_straight":
-        params["dis"] = 20    # adjust
-        params["sp"] = 10     # adjust
+        params["dis"] = 20        # adjust
+        params["sp"] = 10         # adjust
     elif row.scenario == "left_turn_turn":
-        params["dis"] = 5     # adjust
+        params["dis"] = 5         # adjust
         params["sp"] = _kmph_to_mps(row.road_speed_limit_kmph)
     elif row.scenario == "right_turn_straight":
-        params["dis"] = 20    # adjust
-        params["sp"] = 10     # adjust
+        params["dis"] = 20        # adjust
+        params["sp"] = 10         # adjust
     elif row.scenario == "right_turn_turn":
-        params["dis"] = 5     # adjust
+        params["dis"] = 5         # adjust
         params["sp"] = _kmph_to_mps(row.road_speed_limit_kmph)
     elif row.scenario == "vehicle_encroachment":
-        params["dis"] = 5     # adjust
-        params["angle"] = 90  # adjust
+        params["dis"] = 5         # adjust
+        params["angle"] = 90      # adjust
     else:
         print(f"[WARNING] {row.scenario} scenarios are currently not simulated (case {row.cirenid})")
     
