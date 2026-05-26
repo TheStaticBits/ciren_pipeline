@@ -70,3 +70,20 @@ conda activate terasim-cosim
  - Focus on the processing and automated pipeline
  - Make a JSON output file that stores the case ID, the case type, and the case parameters for each case
  - Automate processing that JSON file and simulating each case in that JSON file, and then outputting the delta-v and injury calculations for each case in an excel file.
+
+<br />
+
+## Notes from Tuesday, May 26th
+- Look through config.yaml files and try to understand what does what
+- Find one demo case for each of the test cases for the MCity meeting
+- Change delta-v calculations to be in both x and y directions
+- Work on injury-risk calculation code based on x and y directions
+- LLM for categorization
+
+
+clarification questions:
+- should I use webscraper in order to plug into an LLM to categorize the cases? Or should I just do it manually?
+- how do we ensure better accuracy with the case parameters etc. etc.
+- for injury calculations, are we using the same injury risk information (bmi, etc.) as the case data along with the delta-v of the collisions in order to calculate the injury risk?
+- are we plugging in our own heading angle into the injury risk calculation?
+- are we doing pedestrian vehicle simulations as well? or just vehicle-vehicle simulations?
