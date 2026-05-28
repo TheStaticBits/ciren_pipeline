@@ -1,5 +1,10 @@
 import pandas as pd
 from pathlib import Path
+import sys
+from pathlib import Path
+
+# Add parent directory to path for ciren imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import ciren.calculate_injury_risks as calc_risk
 
@@ -29,7 +34,7 @@ def main(delta_v_file: Path, master_file: Path, model_file: Path, output_file: P
     for i, row in dv_df.iterrows():
         # get master_df row by current cirenid
         master_row = master_df[row["cirenid"]]
-        print(f" - Calculating for case {row["cirenid"]}...")
+        print(f" - Calculating for case {row['cirenid']}...")
         # set delta_v used to the calculated delta_v from simulation
         master_row["total_delta_v"] = row["2D_delta_v_av"]
         # run model
