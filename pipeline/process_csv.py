@@ -1,4 +1,4 @@
-import argparse
+import math, argparse
 import pandas as pd
 from pathlib import Path
 
@@ -28,11 +28,34 @@ def process_csv(folder: Path, cirenid: int, cases: int, verbose: bool, m_av: int
         # extract speeds
         v_av = last["AV sp"]
         v_ch = last["challenger sp"]
-        
-        # conservation of momentum
+
+        # (OLD) 1D conservation of momentum
         v_final = (m_av * v_av + m_ch * v_ch) / (m_av + m_ch)
         delta_v_av = v_final - v_av
         delta_v_ch = v_final - v_ch
+
+        # use heading angle to find speed in x and y directions
+        # because the last entry sometimes reads zero for lon/lat speed values
+        angle_av = math.radians(last["AV heading"]) # 0 degrees is up, positive = clockwise
+        angle_ch = math.radians(last["challenger heading"])
+
+        v_av_x = v_av * math.cos(angle_av)
+        v_av_y = v_av * math.sin(angle_av)
+        v_ch_x = v_ch * math.cos(angle_ch)
+        v_ch_y = v_ch * math.sin(angle_ch)
+
+        # conservation of momentum applied in x and y directions
+        v_final_x = (m_av * v_av_x + m_ch * v_ch_x) / (m_av + m_ch)
+        v_final_y = (m_av * v_av_y + m_ch * v_ch_y) / (m_av + m_ch)
+        v_final_combined = math.sqrt(v_final_x ** 2 + v_final_y ** 2)
+        
+        # calculate delta_v as magnitude of velocity change vector
+        delta_v_av_x = v_final_x - v_av_x
+        delta_v_av_y = v_final_y - v_av_y
+        delta_v_av_2d = math.sqrt(delta_v_av_x ** 2 + delta_v_av_y ** 2)
+        delta_v_ch_x = v_final_x - v_ch_x
+        delta_v_ch_y = v_final_y - v_ch_y
+        delta_v_ch_2d = math.sqrt(delta_v_ch_x ** 2 + delta_v_ch_y ** 2)
         
         results.append({
             "cirenid": cirenid,
@@ -40,9 +63,20 @@ def process_csv(folder: Path, cirenid: int, cases: int, verbose: bool, m_av: int
             "timestamp": timestamp,
             "AV_sp": v_av,
             "challenger_sp": v_ch,
-            "v_final": v_final,
-            "delta_v_AV": delta_v_av,
-            "delta_v_challenger": delta_v_ch
+
+            # old
+            "1D_v_final": v_final,
+            "1D_delta_v_AV": delta_v_av,
+            "1D_delta_v_challenger": delta_v_ch,
+
+            # new 2d calculations
+            "AV_sp_x": v_av_x,
+            "AV_sp_y": v_av_y,
+            "CH_sp_x": v_ch_x,
+            "CH_sp_y": v_ch_y,
+            "2D_v_final": v_final_combined,
+            "2D_delta_v_av": delta_v_av_2d,
+            "2D_delta_v_ch": delta_v_ch_2d
         })
         
         if verbose:
