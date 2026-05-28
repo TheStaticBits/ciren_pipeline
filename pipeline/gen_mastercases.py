@@ -27,7 +27,7 @@ def gen_master_cases(case_nums: list[int]):
     # 3. Use LLM API to categorize into one of the 14 available, filtering out bad cases
     # TODO
     print("3. Categorizing crashes...")
-    categorize.main("ciren_database/ciren_crash_summaries_categorized.xlsx", case_nums)
+    categorize.main(case_nums, "ciren_database/ciren_crash_summaries.xlsx", "ciren_database/ciren_crash_summaries_categorized.xlsx")
     print("3. Categorizing crashes complete!")
 
     # 4. Run flatten_exports_to_master.py, excluding cases that were not categorized in step 3
