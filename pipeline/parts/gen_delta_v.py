@@ -38,11 +38,12 @@ def process_csv(folder: Path, cirenid: int, cases: int, verbose: bool, m_av: int
         # because the last entry sometimes reads zero for lon/lat speed values
         angle_av = math.radians(last["AV heading"]) # 0 degrees is up, positive = clockwise
         angle_ch = math.radians(last["challenger heading"])
+        net_angle = last["AV heading"] - last["challenger heading"]
 
-        v_av_x = v_av * math.cos(angle_av)
-        v_av_y = v_av * math.sin(angle_av)
-        v_ch_x = v_ch * math.cos(angle_ch)
-        v_ch_y = v_ch * math.sin(angle_ch)
+        v_av_x = v_av * math.sin(angle_av)
+        v_av_y = v_av * math.cos(angle_av)
+        v_ch_x = v_ch * math.sin(angle_ch)
+        v_ch_y = v_ch * math.cos(angle_ch)
 
         # conservation of momentum applied in x and y directions
         v_final_x = (m_av * v_av_x + m_ch * v_ch_x) / (m_av + m_ch)
@@ -76,7 +77,10 @@ def process_csv(folder: Path, cirenid: int, cases: int, verbose: bool, m_av: int
             "CH_sp_y": v_ch_y,
             "2D_v_final": v_final_combined,
             "2D_delta_v_av": delta_v_av_2d,
-            "2D_delta_v_ch": delta_v_ch_2d
+            "2D_delta_v_ch": delta_v_ch_2d,
+
+            # angle of collision
+            "angle_collision": net_angle
         })
         
         if verbose:

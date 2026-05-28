@@ -4,8 +4,9 @@ import os, json, subprocess, contextlib
 import pandas as pd
 from pathlib import Path
 
-import edit_speed as edit_speed
-import process_csv as process_csv
+import parts.edit_speed as edit_speed
+import parts.gen_delta_v as gen_delta_v
+import parts.gen_injury_risks as injury_risk
 
 # runs, simulates, and calculates delta-v given a single case entry from case_parameters file
 def run_case(case: dict, master_df: pd.DataFrame, delta_v_frames: list, skipped: list[int], verbose: bool, dlt_path: Path, output_dv_file: Path):
@@ -83,7 +84,7 @@ def run_case(case: dict, master_df: pd.DataFrame, delta_v_frames: list, skipped:
 
     # run delta_v calculations and add to the delta_v_frames dictionary
     if verbose: print(" - Calculating delta_v...")
-    result = process_csv.process_csv(test_path, case["cirenid"], 1, True, av_mass, ch_mass)
+    result = gen_delta_v.process_csv(test_path, case["cirenid"], 1, True, av_mass, ch_mass)
     delta_v_frames += result
 
     print(f"- Finished case {case['cirenid']}!\n\n")
@@ -93,7 +94,7 @@ def run_case(case: dict, master_df: pd.DataFrame, delta_v_frames: list, skipped:
     results_df.to_csv(output_dv_file, index=False)
 
 
-def run_all(params_json: Path, master_cases_file: Path, verbose: bool, dlt_path: Path, output_dv_file: Path) -> list:
+def run_all(verbose: bool, params_json: Path, master_cases_file: Path, dlt_path: Path, output_dv_file: Path, risk_model_file: Path, output_injury_file: Path):
     delta_v_frames: list = []
     skipped: list[int] = [] # list of the cirenid of skipped cases
 
@@ -109,14 +110,23 @@ def run_all(params_json: Path, master_cases_file: Path, verbose: bool, dlt_path:
     for case in data:
         run_case(case, master_df, delta_v_frames, skipped, verbose, dlt_path, output_dv_file)
 
-    # skipped cases
-    print(f" - SKIPPED CASES: {skipped}")
+    # Print skipped cases
+    print(f" - SKIPPED CASES:\n{skipped}\n")
 
-    return delta_v_frames
+    print(f" ---- Running injury risk calculations ---- ")
+    injury_risk.main(output_dv_file, master_cases_file, risk_model_file, output_injury_file)
 
 
 def main():
-    run_all("pipeline/outputs/case_parameters.json", "./ciren_database/master_cases.xlsx", True, "/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test", "pipeline/outputs/delta_v_results.csv")
+    run_all(
+        verbose=True,
+        params_json="pipeline/outputs/case_parameters.json",
+        master_cases_file="./ciren_database/master_cases.xlsx",
+        dlt_path="/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test",
+        output_dv_file="pipeline/outputs/delta_v_results.csv",
+        risk_model_file="ciren/CISS_injury_models_20210415.xlsx",
+        output_injury_file="pipeline/outputs/sim_injury_risks.csv"
+    )
 
 
 if __name__ == "__main__":
