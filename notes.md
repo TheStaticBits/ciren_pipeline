@@ -78,7 +78,8 @@ conda activate terasim-cosim
 - Find one demo case for each of the test cases for the MCity meeting
 - ✓ Change delta-v calculations to be in both x and y directions
 - ✓ Write injury-risk calculation code to iterate through pipeline/outputs/case_parameters.json
-- LLM for categorization
+- ✓ LLM for categorization
+    - check LLM categorization
 
 clarification questions prior to May 26th meeting:
 - should I use webscraper in order to plug into an LLM to categorize the cases? Or should I just do it manually?
