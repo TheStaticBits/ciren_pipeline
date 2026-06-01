@@ -154,9 +154,9 @@ def wait_for_finish_to_send(driver: webdriver.Chrome):
 def main(ciren_ids: list[int], input_summaries_file: Path, output_file: Path):
 
     options = webdriver.ChromeOptions()
-    options.add_argument("--user-data-dir=/home/mzjia/chrome-profile/google-chrome")
-    options.add_argument("--profile-directory=Default")
-    options.add_argument("--remote-debugging-port=9222")
+    # options.add_argument("--user-data-dir=/home/mzjia/chrome-profile/google-chrome")
+    # options.add_argument("--profile-directory=Default")
+    # options.add_argument("--remote-debugging-port=9222")
     options.binary_location = "/usr/bin/google-chrome"
     driver = webdriver.Chrome(options=options)
     driver.get("https://gemini.google.com/app")
