@@ -87,3 +87,13 @@ clarification questions prior to May 26th meeting:
 - for injury calculations, are we using the same injury risk information (bmi, etc.) as the case data along with the delta-v of the collisions in order to calculate the injury risk?
 - are we plugging in our own heading angle into the injury risk calculation?
 - are we doing pedestrian vehicle simulations as well? or just vehicle-vehicle simulations?
+
+<br />
+
+## Notes from Tuesday, June 2nd
+- Try to connect CARLA, Autoware, TeraSim together
+- Write up and document each of the files in the codebase and how to run them, etc.
+- Fix bug with case parameters.json duplicating cases
+- Look through the config.yaml files and try to understand what does what
+- Find one demo case for each of the test cases for the MCity meeting
+- Write up each parameter in config.yaml file in a Google Doc to see what it does and how it affects the simulation

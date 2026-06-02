@@ -61,7 +61,9 @@ def gen_single_params(row) -> dict[str, float]:
 
 # iterates through cases in master_cases_file
 # and outputs parameter values based on prior master_case data
-def gen_case_parameters(output: Path, master_cases_file: Path, dlt_path: Path) -> None:
+def gen_case_parameters(folder_out: Path, output: Path, master_cases_file: Path, dlt_path: Path) -> None:
+    os.makedirs(folder_out, exist_ok=True)
+
     data = []
 
     # iterate through each case in master_cases
@@ -105,6 +107,7 @@ def gen_case_parameters(output: Path, master_cases_file: Path, dlt_path: Path) -
 
 def main():
     gen_case_parameters(
+        "./pipeline/outputs"
         "./pipeline/outputs/case_parameters.json", 
         "./ciren_database/master_cases.xlsx", 
         "~/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test"
