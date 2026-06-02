@@ -103,6 +103,13 @@ def gen_case_parameters(output: Path, master_cases_file: Path, dlt_path: Path) -
     
     # format file (O(n))
 
+def main():
+    gen_case_parameters(
+        "./pipeline/outputs/case_parameters.json", 
+        "./ciren_database/master_cases.xlsx", 
+        "~/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test"
+    )
+
 
 if __name__ == "__main__":
-    gen_case_parameters("./pipeline/outputs/case_parameters.json", "./ciren_database/master_cases.xlsx", "~/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test")
+    main()

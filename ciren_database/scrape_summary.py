@@ -18,7 +18,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 import openpyxl
 from openpyxl import load_workbook
-import os
+from pathlib import Path
 
 
 PAGE_LOAD_TIMEOUT_SECONDS = 45

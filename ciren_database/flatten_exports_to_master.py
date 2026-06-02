@@ -378,7 +378,7 @@ def main(input_folder: Path, output_file: Path, input_categorized: Path, start_i
         max_files=max_files,
         checkpoint_every=checkpoint_every,
     )
-    print(f"\Flattened {len(df)} rows to {output_file} masterfile")
+    print(f" - Flattened {len(df)} rows to {output_file} masterfile")
     return successful_ids
 
 

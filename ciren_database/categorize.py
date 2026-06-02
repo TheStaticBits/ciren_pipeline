@@ -3,7 +3,7 @@
 
 import os, time, pyperclip, pandas as pd
 from pathlib import Path
-import flatten_exports_to_master as flatten
+import ciren_database.flatten_exports_to_master as flatten
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
@@ -24,8 +24,7 @@ TRIES = 3
 
 
 def get_prompt(cirenid: int, summary: str) -> str:
-    return f"""
-        Categorize the following car crash, found at: https://crashviewer.nhtsa.dot.gov/ciren/details/{cirenid}/ciren-summary-document. The summary of this case is pasted here from the link above:
+    return f"""Categorize the following car crash, found at: https://crashviewer.nhtsa.dot.gov/ciren/details/{cirenid}/ciren-summary-document. The summary of this case is pasted here from the link above:
         {summary}
 
         ---------
@@ -67,6 +66,7 @@ def filter_num_vehicles(folder: Path, ciren_ids: list[int]) -> list[int]:
             os.remove(file) # deletes case file
 
     print(f"Filtered {len(ciren_ids) - len(final_ciren_ids)} cases that do not deal with exactly 2 vehicles!")
+    return final_ciren_ids
 
 
 def wait_for_editable_element(driver: webdriver.Chrome, timeout: int = 30):
@@ -180,11 +180,11 @@ def main(ciren_ids: list[int], input_summaries_file: Path, output_file: Path):
         for _ in range(TRIES):
             # send prompt
             p = get_prompt(case.cirenid, case.crash_summary)
-            pyperclip.copy(p)
+            pyperclip.copy(p) # copy prompt into clipboard
             text_box.click()
-            text_box.send_keys(Keys.CONTROL, "v")
-            wait_for_finish_to_send(driver)
-            text_box.send_keys(Keys.RETURN)
+            text_box.send_keys(Keys.CONTROL, "v") # paste
+            wait_for_finish_to_send(driver) # wait for the send button to load
+            text_box.send_keys(Keys.RETURN) # send
 
             # wait for valid response, then append and break
             response = wait_for_response(curr_response, driver)

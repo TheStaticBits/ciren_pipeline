@@ -4,9 +4,9 @@ import os, json, subprocess, contextlib
 import pandas as pd
 from pathlib import Path
 
-import parts.edit_speed as edit_speed
-import parts.gen_delta_v as gen_delta_v
-import parts.gen_injury_risks as injury_risk
+import pipeline.parts.edit_speed as edit_speed
+import pipeline.parts.gen_delta_v as gen_delta_v
+import pipeline.parts.gen_injury_risks as injury_risk
 
 # runs, simulates, and calculates delta-v given a single case entry from case_parameters file
 def run_case(case: dict, master_df: pd.DataFrame, delta_v_frames: list, skipped: list[int], verbose: bool, dlt_path: Path, output_dv_file: Path):
@@ -80,7 +80,7 @@ def run_case(case: dict, master_df: pd.DataFrame, delta_v_frames: list, skipped:
     # find AV and challenger masses for this case from the master_cases file
     if verbose: print(" - Finding mass of AV and CH...")
     av_mass = master_df.loc[case["cirenid"], "vehicle_curb_weight_kg"]
-    ch_mass = master_df.loc[case["cirenid"], "vehicle2_weight"]
+    ch_mass = master_df.loc[case["cirenid"], "challenger_curb_weight_kg"]
 
     # run delta_v calculations and add to the delta_v_frames dictionary
     if verbose: print(" - Calculating delta_v...")

@@ -57,8 +57,9 @@ def main(output_folder: Path, ciren_ids: list[int]) -> list[int]:
             )
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", export_btn)
             time.sleep(0.5)
-            driver.execute_script("arguments[0].click();", export_btn)
+            export_btn.click()
             print(f"  Download triggered for {case_id}")
+            time.sleep(0.5)
             ok = wait_for_downloads(output_folder, timeout=120)
             if not ok:
                 print(f"  Download timeout for {case_id} (.crdownload still present)")
