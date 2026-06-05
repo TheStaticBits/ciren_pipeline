@@ -25,9 +25,11 @@
     - Also change `DLT_PATH` in `pipeline/parts/edit_speed.py` if you plan on running edit_speed manually (otherwise this is not necessary).
 - If you would like to run the categorization step with your Gemini Pro (bewared, you may be temporarily restricted from using Gemini for a while if you run too many cases through it), in `ciren_database/categorize.py`, change `USE_CHROME_PROFILE` to `True`, and set `CHROME_PROFILE` and `CHROME_BINARY`. You may want to make a copy of your Chrome profile folder elsewhere on your device and set `CHROME_PROFILE` to point to that copy instead of directly to the profile, if you run into issues running categorize.py with these parameters set.
 - Edit `input_cases.txt` to include the case IDs of the cases you want to simulate, separated by one space each.
-- Then run the following commands in the root directory:
+- Then run the following commands in the root directory to run the whole pipeline:
 ```bash
 conda activate terasim-cosim
+pip install -r requirements.txt
+
 python -m pipeline.gen_mastercases
 python -m pipeline.gen_injury_risks
 ```
@@ -39,5 +41,5 @@ python -m ciren.calculate_injury_risks
 ```
 - This will output to `ciren/output/injury_risk_calculations.csv`.
 
-## In-depth Overview
+## In-depth Overview of each File
 - in progress

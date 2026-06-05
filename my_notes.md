@@ -74,8 +74,8 @@ conda activate terasim-cosim
 <br />
 
 ## Notes from Tuesday, May 26th
-- Look through config.yaml files and try to understand what does what
-- Find one demo case for each of the test cases for the MCity meeting
+- ✓ Look through config.yaml files and try to understand what does what
+- ✓ Find one demo case for each of the test cases for the MCity meeting
 - ✓ Change delta-v calculations to be in both x and y directions
 - ✓ Write injury-risk calculation code to iterate through pipeline/outputs/case_parameters.json
 - ✓ LLM for categorization
@@ -92,8 +92,17 @@ clarification questions prior to May 26th meeting:
 
 ## Notes from Tuesday, June 2nd
 - Try to connect CARLA, Autoware, TeraSim together
-- Write up and document each of the files in the codebase and how to run them, etc.
 - Fix bug with case parameters.json duplicating cases
-- Look through the config.yaml files and try to understand what does what
-- Find one demo case for each of the test cases for the MCity meeting
-- Write up each parameter in config.yaml file in a Google Doc to see what it does and how it affects the simulation
+- Write up and document each of the files in the codebase and how to run them, etc.
+- ✓ Look through the config.yaml files and try to understand what does what
+- ✓ Find one demo case for each of the test cases for the MCity meeting
+- ✓ Write up each parameter in config.yaml file in a Google Doc to see what it does and how it affects the simulation
+
+<br />
+
+## Notes from Tuesday, June 9nd
+- Try to connect CARLA, Autoware, TeraSim all together
+- Try to adjust Autoware position to match SUMO, or vice versa
+- Try to figure out how to adjust Autoware AV speed or positions
+- Try to automate running Autoware.
+- Fix bug with case parameters.json duplicating cases

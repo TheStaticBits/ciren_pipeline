@@ -2,7 +2,7 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 import sys
 
-DLT_PATH = Path("/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test")
+DLT_PATH = Path("/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test/env/route")
 
 def get_prev_max_speed(root) -> float:
     max_speed = 0
