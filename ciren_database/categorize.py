@@ -22,6 +22,9 @@ VALID = ["None", "cut_in", "car_following", "lane_departure_same", "lane_departu
 
 TRIES = 3
 
+USE_CHROME_PROFILE = False
+CHROME_PROFILE = "/home/mzjia/chrome-profile/google-chrome"
+CHROME_BINARY = "/usr/bin/google-chrome"
 
 def get_prompt(cirenid: int, summary: str) -> str:
     return f"""Categorize the following car crash, found at: https://crashviewer.nhtsa.dot.gov/ciren/details/{cirenid}/ciren-summary-document. The summary of this case is pasted here from the link above:
@@ -154,10 +157,11 @@ def wait_for_finish_to_send(driver: webdriver.Chrome):
 def main(ciren_ids: list[int], input_summaries_file: Path, output_file: Path):
 
     options = webdriver.ChromeOptions()
-    # options.add_argument("--user-data-dir=/home/mzjia/chrome-profile/google-chrome")
-    # options.add_argument("--profile-directory=Default")
-    # options.add_argument("--remote-debugging-port=9222")
-    options.binary_location = "/usr/bin/google-chrome"
+    if USE_CHROME_PROFILE:
+        options.add_argument(f"--user-data-dir={CHROME_PROFILE}")
+        options.add_argument("--profile-directory=Default")
+        options.add_argument("--remote-debugging-port=9222")
+        options.binary_location = CHROME_BINARY
     driver = webdriver.Chrome(options=options)
     driver.get("https://gemini.google.com/app")
     time.sleep(1.0)

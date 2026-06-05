@@ -8,6 +8,9 @@ import pipeline.parts.edit_speed as edit_speed
 import pipeline.parts.gen_delta_v as gen_delta_v
 import pipeline.parts.gen_injury_risks as injury_risk
 
+DLT_PATH = Path("/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test")
+
+
 # runs, simulates, and calculates delta-v given a single case entry from case_parameters file
 def run_case(case: dict, master_df: pd.DataFrame, delta_v_frames: list, skipped: list[int], verbose: bool, dlt_path: Path, output_dv_file: Path):
     if verbose: print(f" ---- Running case {case['cirenid']} ---- ")
@@ -122,7 +125,7 @@ def main():
         verbose=True,
         params_json="pipeline/outputs/case_parameters.json",
         master_cases_file="./ciren_database/master_cases.xlsx",
-        dlt_path="/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test",
+        dlt_path=DLT_PATH,
         output_dv_file="pipeline/outputs/delta_v_results.csv",
         risk_model_file="ciren/CISS_injury_models_20210415.xlsx",
         output_injury_file="pipeline/outputs/sim_injury_risks.csv"

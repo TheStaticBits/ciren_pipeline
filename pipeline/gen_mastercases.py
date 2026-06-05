@@ -41,4 +41,4 @@ def gen_master_cases(abs_path: Path, case_nums: list[int]):
 if __name__ == "__main__":
     with open("input_cases.txt", "r") as file:
         ciren_ids = [int(id) for id in file.read().split(" ")]
-        gen_master_cases(Path("/home/mzjia/lab/ciren_pipeline"), ciren_ids)
+        gen_master_cases(Path(__file__).parent, ciren_ids)

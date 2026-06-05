@@ -1,5 +1,8 @@
+from pathlib import Path
 import xml.etree.ElementTree as ET
 import sys
+
+DLT_PATH = Path("/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test")
 
 def get_prev_max_speed(root) -> float:
     max_speed = 0
@@ -38,4 +41,4 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         print(f"Expected two arguments, the scenario to edit and the new max speed -- found {len(sys.argv) - 1}")
     else:
-        main(f"/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test/env/route/Autoware.Universe/{sys.argv[1]}/map", float(sys.argv[2]))
+        main(DLT_PATH / Path(f"Autoware.Universe/{sys.argv[1]}/map"), float(sys.argv[2]))
