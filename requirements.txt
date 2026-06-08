@@ -5,3 +5,5 @@ seaborn
 openpyxl
 selenium
 pyperclip
+catkin_pkg
+empy==3.3.4
