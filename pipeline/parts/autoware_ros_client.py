@@ -28,11 +28,6 @@ class AutowareROSClient(Node):
         msg.header.stamp = self.get_clock().now()
         msg.header.frame_id = "map"
         self.pos_publisher.publish(msg)
-
-    
-    async def run_av(self) -> bool:
-        await self.set_autoware_control()
-        await self.set_auto_start()
     
     async def set_autoware_control(self) -> ChangeAutowareControl.Response:
         req = ChangeAutowareControl.Request
@@ -44,9 +39,9 @@ class AutowareROSClient(Node):
         return await self.autoware_state_client.call_async(req)
 
 
-    async def set_auto_start(self) -> ChangeAutowareControl.Response:
+    async def set_auto_start(self, state: bool) -> ChangeAutowareControl.Response:
         req = ChangeAutowareControl.Request
-        req.mode = 2 # 2 is auto control
+        req.mode = 2 if state else 1 # 2 is auto control, 1 is stopped
 
         while (not self.autoware_state_client.wait_for_service(1)):
             print("Waiting for auto state service...")

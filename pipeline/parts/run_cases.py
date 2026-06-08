@@ -1,18 +1,25 @@
 # make sure to delete record.csv before each run to check properly if a collision has occured
 
-import os, json, subprocess, contextlib
+import os, json, subprocess, atexit, contextlib, asyncio
 import pandas as pd
 from pathlib import Path
 
 import pipeline.parts.edit_speed as edit_speed
 import pipeline.parts.gen_delta_v as gen_delta_v
 import pipeline.parts.gen_injury_risks as injury_risk
+from pipeline.parts.autoware_ros_client import AutowareROSClient
+from geometry_msgs.msg import PoseWithCovarianceStamped
 
 DLT_PATH = Path("/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test")
 
 
 # runs, simulates, and calculates delta-v given a single case entry from case_parameters file
-def run_case(case: dict, master_df: pd.DataFrame, delta_v_frames: list, skipped: list[int], verbose: bool, dlt_path: Path, output_dv_file: Path):
+async def run_case(
+    case: dict, autoware: AutowareROSClient,
+    master_df: pd.DataFrame, av_locs: dict,
+    delta_v_frames: list, skipped: list[int],
+    verbose: bool, dlt_path: Path, output_dv_file: Path
+):
     if verbose: print(f" ---- Running case {case['cirenid']} ---- ")
 
     # open parameters file in DLT
@@ -50,6 +57,19 @@ def run_case(case: dict, master_df: pd.DataFrame, delta_v_frames: list, skipped:
     with contextlib.suppress(FileNotFoundError):
         os.remove(record_path)
 
+    if verbose: print(" - Setting Autoware parameters...")
+    param = av_locs[case['type']]
+    pos = PoseWithCovarianceStamped()
+    pos.pose.pose.position.x = param["x"]
+    pos.pose.pose.position.y = param["y"]
+    pos.pose.pose.orientation.x = param["x"]
+    pos.pose.pose.orientation.y = param["y"]
+    pos.pose.pose.orientation.z = param["z"]
+    pos.pose.pose.orientation.w = param["w"]
+
+    autoware.pub_pos(pos)
+    await autoware.set_auto_start(True)
+
     # simulate the scenario
     if verbose: print(" - Simulating scenario...")
     returncode = 1 # ignore errors and run again if error found
@@ -65,6 +85,9 @@ def run_case(case: dict, master_df: pd.DataFrame, delta_v_frames: list, skipped:
         print(f"[WARNING] Case {case['cirenid']} ran 10 times unsuccessfully. Skipping.")
         skipped.append(case["cirenid"])
         return
+    
+    if verbose: print(" - Disabling Autoware...")
+    await autoware.set_auto_start(False)
 
     # find out if a collision has occurred
     if verbose: print(" - Checking collision...")
@@ -97,21 +120,41 @@ def run_case(case: dict, master_df: pd.DataFrame, delta_v_frames: list, skipped:
     results_df.to_csv(output_dv_file, index=False)
 
 
-def run_all(verbose: bool, params_json: Path, master_cases_file: Path, dlt_path: Path, output_dv_file: Path, risk_model_file: Path, output_injury_file: Path):
+def run_mcity_cosim():
+    cmd = ["ros2", "launch", "mcity_abc", "mcity_abc.launch.py"]
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    
+    def kill():
+        process.terminate()
+        process.wait()
+    
+    atexit.register(kill)
+
+
+async def run_all(verbose: bool, params_json: Path, av_locs_json: Path, master_cases_file: Path, dlt_path: Path, output_dv_file: Path, risk_model_file: Path, output_injury_file: Path):
     delta_v_frames: list = []
     skipped: list[int] = [] # list of the cirenid of skipped cases
 
     # load parameters json file
     with open(params_json, "r") as file:
         data = json.load(file)
+    
+    # load AV positions json file:
+    with open(av_locs_json, "r") as file:
+        av_locs = json.load(file)
 
     # load master_cases file
     master_df = pd.read_excel(master_cases_file)
     master_df.set_index("cirenid", inplace=True)
 
+    # load autoware client
+    autoware = AutowareROSClient()
+    autoware.set_autoware_control()
+    run_mcity_cosim()
+
     # run all cases
     for case in data:
-        run_case(case, master_df, delta_v_frames, skipped, verbose, dlt_path, output_dv_file)
+        await run_case(case, autoware, master_df, av_locs, delta_v_frames, skipped, verbose, dlt_path, output_dv_file)
 
     # Print skipped cases
     print(f" - SKIPPED CASES:\n{skipped}\n")
