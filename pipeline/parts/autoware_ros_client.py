@@ -1,6 +1,6 @@
 import rclpy, asyncio
 from rclpy.node import Node
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from tier4_system_msgs.srv import ChangeAutowareControl, ChangeOperationMode
 
 class AutowareROSClient(Node):
@@ -10,6 +10,12 @@ class AutowareROSClient(Node):
         self.pos_publisher = self.create_publisher(
             PoseWithCovarianceStamped,
             "/initialpose",
+            10
+        )
+
+        self.pos_goal_publisher = self.create_publisher(
+            PoseStamped,
+            "/planning/mission_planning/goal",
             10
         )
 
@@ -25,7 +31,12 @@ class AutowareROSClient(Node):
 
     # set position and orientations before passing into this function
     def pub_pos(self, msg: PoseWithCovarianceStamped):
-        msg.header.stamp = self.get_clock().now()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = "map"
+        self.pos_publisher.publish(msg)
+        
+    def pub_goal(self, msg: PoseStamped):
+        msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "map"
         self.pos_publisher.publish(msg)
     
@@ -47,3 +58,12 @@ class AutowareROSClient(Node):
             print("Waiting for auto state service...")
         
         return await self.operation_mode_client.call_async(req)
+
+
+if __name__ == "__main__":
+    rclpy.init()
+    node = AutowareROSClient()
+    pos = PoseWithCovarianceStamped()
+    pos.pose.pose.position.x = 100.0
+    pos.pose.pose.position.y = 100.0
+    node.pub_pos(pos)

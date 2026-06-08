@@ -1,6 +1,6 @@
 # make sure to delete record.csv before each run to check properly if a collision has occured
 
-import os, json, subprocess, atexit, contextlib, asyncio
+import os, rclpy, json, subprocess, atexit, contextlib, asyncio
 import pandas as pd
 from pathlib import Path
 
@@ -8,7 +8,7 @@ import pipeline.parts.edit_speed as edit_speed
 import pipeline.parts.gen_delta_v as gen_delta_v
 import pipeline.parts.gen_injury_risks as injury_risk
 from pipeline.parts.autoware_ros_client import AutowareROSClient
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 
 DLT_PATH = Path("/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test")
 
@@ -62,12 +62,22 @@ async def run_case(
     pos = PoseWithCovarianceStamped()
     pos.pose.pose.position.x = param["x"]
     pos.pose.pose.position.y = param["y"]
-    pos.pose.pose.orientation.x = param["x"]
-    pos.pose.pose.orientation.y = param["y"]
-    pos.pose.pose.orientation.z = param["z"]
-    pos.pose.pose.orientation.w = param["w"]
+    pos.pose.pose.orientation.x = param["o_x"]
+    pos.pose.pose.orientation.y = param["o_y"]
+    pos.pose.pose.orientation.z = param["o_z"]
+    pos.pose.pose.orientation.w = param["o_w"]
 
+    goal = PoseStamped()
+    goal.pose.position.x = param["g_x"]
+    goal.pose.position.y = param["g_y"]
+    goal.pose.orientation.x = param["g_o_x"]
+    goal.pose.orientation.y = param["g_o_y"]
+    goal.pose.orientation.z = param["g_o_z"]
+    goal.pose.orientation.w = param["g_o_w"]
+
+    # set pos and goal
     autoware.pub_pos(pos)
+    autoware.pub_goal(goal)
     await autoware.set_auto_start(True)
 
     # simulate the scenario
@@ -176,4 +186,5 @@ def main():
 
 
 if __name__ == "__main__":
+    rclpy.init()
     main()
