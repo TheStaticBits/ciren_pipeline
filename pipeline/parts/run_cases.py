@@ -1,6 +1,6 @@
 # make sure to delete record.csv before each run to check properly if a collision has occured
 
-import os, rclpy, json, subprocess, atexit, contextlib, asyncio
+import os, rclpy, json, subprocess, atexit, contextlib, asyncio, time
 import pandas as pd
 from pathlib import Path
 
@@ -12,6 +12,10 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 
 DLT_PATH = Path("/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test")
 
+# av_locations.json information:
+# These numbers were taken from MCity's autoware repo,
+# from src/mcity/mcity_abc/src/*.cpp files.
+# o means orientation, g means goal
 
 # runs, simulates, and calculates delta-v given a single case entry from case_parameters file
 async def run_case(
@@ -60,26 +64,27 @@ async def run_case(
     if verbose: print(" - Setting Autoware parameters...")
     param = av_locs[case['type']]
     pos = PoseWithCovarianceStamped()
-    pos.pose.pose.position.x = param["x"]
-    pos.pose.pose.position.y = param["y"]
-    pos.pose.pose.orientation.x = param["o_x"]
-    pos.pose.pose.orientation.y = param["o_y"]
-    pos.pose.pose.orientation.z = param["o_z"]
-    pos.pose.pose.orientation.w = param["o_w"]
+    pos.pose.pose.position.x = float(param["x"])
+    pos.pose.pose.position.y = float(param["y"])
+    pos.pose.pose.orientation.x = float(param["o_x"])
+    pos.pose.pose.orientation.y = float(param["o_y"])
+    pos.pose.pose.orientation.z = float(param["o_z"])
+    pos.pose.pose.orientation.w = float(param["o_w"])
 
     goal = PoseStamped()
-    goal.pose.position.x = param["g_x"]
-    goal.pose.position.y = param["g_y"]
-    goal.pose.orientation.x = param["g_o_x"]
-    goal.pose.orientation.y = param["g_o_y"]
-    goal.pose.orientation.z = param["g_o_z"]
-    goal.pose.orientation.w = param["g_o_w"]
+    goal.pose.position.x = float(param["g_x"])
+    goal.pose.position.y = float(param["g_y"])
+    goal.pose.orientation.x = float(param["g_o_x"])
+    goal.pose.orientation.y = float(param["g_o_y"])
+    goal.pose.orientation.z = float(param["g_o_z"])
+    goal.pose.orientation.w = float(param["g_o_w"])
 
     # set pos and goal
     autoware.pub_pos(pos)
+    time.sleep(5)
     autoware.pub_goal(goal)
-    await autoware.set_auto_start(True)
-
+    # await autoware.set_auto_start(True)
+    time.sleep(1000)
     # simulate the scenario
     if verbose: print(" - Simulating scenario...")
     returncode = 1 # ignore errors and run again if error found
@@ -131,7 +136,7 @@ async def run_case(
 
 
 def run_mcity_cosim():
-    cmd = ["ros2", "launch", "mcity_abc", "mcity_abc.launch.py"]
+    cmd = ["conda", "deactivate", "&&", "ros2", "launch", "mcity_abc", "mcity_abc.launch.py"]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     
     def kill():
@@ -159,7 +164,7 @@ async def run_all(verbose: bool, params_json: Path, av_locs_json: Path, master_c
 
     # load autoware client
     autoware = AutowareROSClient()
-    autoware.set_autoware_control()
+    await autoware.set_autoware_control()
     run_mcity_cosim()
 
     # run all cases
@@ -173,10 +178,11 @@ async def run_all(verbose: bool, params_json: Path, av_locs_json: Path, master_c
     injury_risk.main(output_dv_file, master_cases_file, risk_model_file, output_injury_file)
 
 
-def main():
-    run_all(
+async def main():
+    await run_all(
         verbose=True,
         params_json="pipeline/outputs/case_parameters.json",
+        av_locs_json="pipeline/parts/av_locations.jsonc",
         master_cases_file="./ciren_database/master_cases.xlsx",
         dlt_path=DLT_PATH,
         output_dv_file="pipeline/outputs/delta_v_results.csv",
@@ -187,4 +193,4 @@ def main():
 
 if __name__ == "__main__":
     rclpy.init()
-    main()
+    asyncio.run(main())

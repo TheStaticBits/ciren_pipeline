@@ -8,13 +8,14 @@
 # 7. Run new delta-v data through injury calculator file in ciren/calculate_injury_risks.py
 # 8. Run statistical analysis on the difference in injury risks from a human driver compared to an automatic vehicle.
 
+import asyncio
 import pipeline.parts.gen_case_parameters as gen_case_parameters
 import pipeline.parts.run_cases as run_cases
 
 # runs gen_case_parameters and then run_cases.py
-def gen_injury_risks():
+async def gen_injury_risks():
     gen_case_parameters.main()
-    run_cases.main()
+    await run_cases.main()
 
 if __name__ == "__main__":
-    gen_injury_risks()
+    asyncio.run(gen_injury_risks())
