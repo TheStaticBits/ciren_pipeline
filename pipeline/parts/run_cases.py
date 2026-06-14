@@ -179,10 +179,25 @@ async def run_case(
         skipped.append(case["cirenid"])
         return
 
-    try:
-        route_response = await autoware.set_goal(goal)
-    except (RuntimeError, TimeoutError) as exc:
-        print(f"[WARNING] Case {case['cirenid']} route setup failed: {exc}. Skipping.")
+    route_response = None
+    for route_attempt in range(1, 4):
+        try:
+            route_response = await autoware.set_goal(goal)
+        except (RuntimeError, TimeoutError) as exc:
+            print(f"[WARNING] Case {case['cirenid']} route setup attempt {route_attempt} failed: {exc}.")
+        else:
+            if route_response.status.success:
+                break
+
+            print(
+                f"[WARNING] Case {case['cirenid']} route setup attempt {route_attempt} "
+                f"was rejected: {route_response.status.message}."
+            )
+
+        await asyncio.sleep(1.0)
+
+    if route_response is None:
+        print(f"[WARNING] Case {case['cirenid']} route setup failed. Skipping.")
         skipped.append(case["cirenid"])
         return
 
@@ -301,7 +316,8 @@ async def run_all(verbose: bool, params_json: Path, av_locs_json: Path, master_c
     run_mcity_cosim()
 
     # run all cases
-    for case in data:
+    for index, case in enumerate(data, start=1):
+        print(f" ---- Case {index}/{len(data)}: {case['cirenid']} ({case['type']}) ---- ")
         await run_case(case, autoware, master_df, av_locs, delta_v_frames, skipped, verbose, dlt_path, output_dv_file)
 
     # Print skipped cases
