@@ -33,22 +33,23 @@ def main(delta_v_file: Path, master_file: Path, model_file: Path, output_file: P
     result = []
     for i, row in dv_df.iterrows():
         # get master_df row by current cirenid
-        master_row = master_df[row["cirenid"]]
-        print(f" - Calculating for case {row['cirenid']}...")
+        cirenid = int(row["cirenid"])
+        master_row = master_df.loc[cirenid].copy()
+        print(f" - Calculating injury risks for case {cirenid}...")
         # set delta_v used to the calculated delta_v from simulation
         master_row["total_delta_v"] = row["2D_delta_v_av"]
         # run model
         risks = model.calculate_all_risks(master_row)
 
         result.append({
-            'cirenid': row['cirenid'],
-            'category': row['scenario'],
-            'age_yr': row['age_yr'],
-            'gender': row['sex'],
-            'height': row['height'],
-            'weight': row['weight'],
-            'bmi': row['bmi'],
-            'iss': row['iss'],
+            'cirenid': cirenid,
+            'category': master_row['scenario'],
+            'age_yr': master_row['age_yr'],
+            'gender': master_row['sex'],
+            'height': master_row['height'],
+            'weight': master_row['weight'],
+            'bmi': master_row['bmi'],
+            'iss': master_row['iss'],
             **risks
         })
     
