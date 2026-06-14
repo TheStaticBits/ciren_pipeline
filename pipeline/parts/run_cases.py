@@ -1,6 +1,6 @@
 # make sure to delete record.csv before each run to check properly if a collision has occured
 
-import os, rclpy, json, subprocess, atexit, contextlib, asyncio, time
+import os, rclpy, json, subprocess, atexit, contextlib, asyncio, time, signal
 import pandas as pd
 from pathlib import Path
 
@@ -11,11 +11,95 @@ from pipeline.parts.autoware_ros_client import AutowareROSClient
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 
 DLT_PATH = Path("/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test")
+DLT_CASE_TIMEOUT_SEC = 180.0
+DLT_MAX_ATTEMPTS = 10
 
 # av_locations.json information:
 # These numbers were taken from MCity's autoware repo,
 # from src/mcity/mcity_abc/src/*.cpp files.
 # o means orientation, g means goal
+
+
+def record_has_collision(record_path: Path) -> bool:
+    try:
+        record_df = pd.read_csv(record_path)
+    except (FileNotFoundError, pd.errors.EmptyDataError, pd.errors.ParserError):
+        return False
+
+    if "collision" not in record_df:
+        return False
+
+    return bool((record_df["collision"] == 1).any())
+
+
+def stop_process(process: subprocess.Popen, timeout_sec: float = 10.0):
+    if process.poll() is not None:
+        return
+
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+
+    try:
+        process.wait(timeout=timeout_sec)
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+
+
+async def stop_autoware_driving(autoware: AutowareROSClient):
+    try:
+        await autoware.set_auto_start(False)
+    except Exception as exc:
+        print(f"[WARNING] Failed to stop Autoware driving: {exc}")
+        return
+
+    stopped = await autoware.wait_for_vehicle_stop()
+    if not stopped:
+        print("[WARNING] Timed out waiting for AV to come to a full stop.")
+
+
+async def run_dlt_until_collision_or_timeout(
+    case: dict,
+    autoware: AutowareROSClient,
+    dlt_path: Path,
+    record_path: Path,
+    timeout_sec: float = DLT_CASE_TIMEOUT_SEC,
+) -> tuple[bool, int | None]:
+    cmd = [
+        "python",
+        f"{dlt_path}/DLT.py",
+        "--gui",
+        "--scenario",
+        case["type"],
+        "--case-num",
+        "0",
+        "--round-num",
+        "1",
+    ]
+    process = subprocess.Popen(cmd, start_new_session=True)
+    deadline = time.monotonic() + timeout_sec
+
+    try:
+        await asyncio.sleep(2.0)
+        await autoware.set_auto_start(True)
+
+        while time.monotonic() < deadline:
+            if record_has_collision(record_path):
+                return True, process.poll()
+
+            returncode = process.poll()
+            if returncode is not None:
+                return record_has_collision(record_path), returncode
+
+            await asyncio.sleep(1.0)
+
+        return record_has_collision(record_path), None
+    finally:
+        await stop_autoware_driving(autoware)
+        stop_process(process)
 
 # runs, simulates, and calculates delta-v given a single case entry from case_parameters file
 async def run_case(
@@ -55,7 +139,7 @@ async def run_case(
     # delete record.csv so we can see if a crash has occurred properly
     if verbose: print(" - Deleting record.csv...")
     test_path = f"{dlt_path}/output/Autoware.Universe/test_data/test_round_1/{case['type']}"
-    record_path = test_path + "/record.csv"
+    record_path = Path(test_path) / "record.csv"
 
     # ignore if it does not exist already
     with contextlib.suppress(FileNotFoundError):
@@ -80,41 +164,81 @@ async def run_case(
     goal.pose.orientation.w = float(param["g_o_w"])
 
     # set pos and goal
-    autoware.pub_pos(pos)
-    time.sleep(5)
-    autoware.pub_goal(goal)
-    # await autoware.set_auto_start(True)
-    time.sleep(1000)
-    # simulate the scenario
-    if verbose: print(" - Simulating scenario...")
-    returncode = 1 # ignore errors and run again if error found
-    count = 0
+    localization_deadline = time.monotonic() + 30.0
+    pose_set = False
+    while time.monotonic() < localization_deadline:
+        autoware.pub_pos(pos)
+        localization_initialized = await autoware.wait_for_localization_initialized(timeout_sec=1.0)
+        pose_is_near_target = await autoware.wait_for_pose_near(pos, timeout_sec=1.0)
+        if localization_initialized and pose_is_near_target:
+            pose_set = True
+            break
 
-    while returncode != 0 and count <= 10:
-        result = subprocess.run(["python", f"{dlt_path}/DLT.py", "--gui",
-                                "--scenario", case["type"], "--case-num", "0", "--round-num", "1"])
-        returncode = result.returncode
-        count += 1
-    
-    if count > 10:
-        print(f"[WARNING] Case {case['cirenid']} ran 10 times unsuccessfully. Skipping.")
+    if not pose_set:
+        print(f"[WARNING] Case {case['cirenid']} initial pose did not update. Skipping.")
         skipped.append(case["cirenid"])
         return
-    
-    if verbose: print(" - Disabling Autoware...")
-    await autoware.set_auto_start(False)
 
-    # find out if a collision has occurred
-    if verbose: print(" - Checking collision...")
+    try:
+        route_response = await autoware.set_goal(goal)
+    except (RuntimeError, TimeoutError) as exc:
+        print(f"[WARNING] Case {case['cirenid']} route setup failed: {exc}. Skipping.")
+        skipped.append(case["cirenid"])
+        return
+
+    if not route_response.status.success:
+        print(f"[WARNING] Case {case['cirenid']} route was rejected: {route_response.status.message}. Skipping.")
+        skipped.append(case["cirenid"])
+        return
+
+    if not await autoware.wait_for_autonomous_available():
+        print(f"[WARNING] Case {case['cirenid']} autonomous mode did not become available. Skipping.")
+        skipped.append(case["cirenid"])
+        return
+
+    # simulate the scenario
+    if verbose: print(" - Simulating scenario...")
     collision = False
-    record_df = pd.read_csv(record_path)
-    for row in record_df.itertuples():
-        if row.collision == 1:
-            collision = True
+    for attempt in range(1, DLT_MAX_ATTEMPTS + 1):
+        with contextlib.suppress(FileNotFoundError):
+            os.remove(record_path)
+
+        if verbose: print(f" - Starting DLT attempt {attempt}/{DLT_MAX_ATTEMPTS}...")
+        try:
+            collision, returncode = await run_dlt_until_collision_or_timeout(
+                case,
+                autoware,
+                dlt_path,
+                record_path,
+            )
+        except Exception as exc:
+            print(f"[WARNING] Case {case['cirenid']} simulation attempt failed: {exc}. Skipping.")
+            skipped.append(case["cirenid"])
+            return
+
+        if collision:
             break
+
+        if returncode is None:
+            print(
+                f"[WARNING] Case {case['cirenid']} did not collide within "
+                f"{DLT_CASE_TIMEOUT_SEC:.0f}s. Skipping."
+            )
+            skipped.append(case["cirenid"])
+            return
+
+        if returncode == 0:
+            print(f"[WARNING] Case {case['cirenid']} finished without a collision. Skipping.")
+            skipped.append(case["cirenid"])
+            return
+
+        print(
+            f"[WARNING] Case {case['cirenid']} DLT attempt {attempt} failed "
+            f"with return code {returncode}."
+        )
     
     if not collision:
-        print(f"[WARNING] Case {case['cirenid']} simulation has not resulted in a collision. Skipping.")
+        print(f"[WARNING] Case {case['cirenid']} ran {DLT_MAX_ATTEMPTS} times unsuccessfully. Skipping.")
         skipped.append(case["cirenid"])
         return
     
@@ -136,14 +260,23 @@ async def run_case(
 
 
 def run_mcity_cosim():
-    cmd = ["conda", "deactivate", "&&", "ros2", "launch", "mcity_abc", "mcity_abc.launch.py"]
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    launch_file = Path(__file__).with_name("autoware_bg_nodes.launch.py")
+    cmd = ["ros2", "launch", str(launch_file)]
+    process = subprocess.Popen(cmd)
     
     def kill():
+        if process.poll() is not None:
+            return
+
         process.terminate()
-        process.wait()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
     
     atexit.register(kill)
+    return process
 
 
 async def run_all(verbose: bool, params_json: Path, av_locs_json: Path, master_cases_file: Path, dlt_path: Path, output_dv_file: Path, risk_model_file: Path, output_injury_file: Path):
