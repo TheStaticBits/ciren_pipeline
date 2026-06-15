@@ -20,6 +20,59 @@ DLT_MAX_ATTEMPTS = 10
 # o means orientation, g means goal
 
 
+def get_pos_and_goal(av_locs, type: str) -> tuple:
+    param = av_locs[type]
+    pos = PoseWithCovarianceStamped()
+    pos.pose.pose.position.x = float(param["x"])
+    pos.pose.pose.position.y = float(param["y"])
+    pos.pose.pose.orientation.x = float(param["o_x"])
+    pos.pose.pose.orientation.y = float(param["o_y"])
+    pos.pose.pose.orientation.z = float(param["o_z"])
+    pos.pose.pose.orientation.w = float(param["o_w"])
+
+    goal = PoseStamped()
+    goal.pose.position.x = float(param["g_x"])
+    goal.pose.position.y = float(param["g_y"])
+    goal.pose.orientation.x = float(param["g_o_x"])
+    goal.pose.orientation.y = float(param["g_o_y"])
+    goal.pose.orientation.z = float(param["g_o_z"])
+    goal.pose.orientation.w = float(param["g_o_w"])
+
+    return pos, goal
+
+
+# returns success status
+async def set_pos(autoware, pos: PoseWithCovarianceStamped) -> bool:
+    localization_deadline = time.monotonic() + 30.0
+    while time.monotonic() < localization_deadline:
+        autoware.pub_pos(pos)
+        localization_initialized = await autoware.wait_for_localization_initialized(timeout_sec=1.0)
+        pose_is_near_target = await autoware.wait_for_pose_near(pos, timeout_sec=1.0)
+        if localization_initialized and pose_is_near_target:
+            return True
+    return False
+
+
+async def set_goal(autoware, goal: PoseStamped, cirenid):
+    route_response = None
+    for route_attempt in range(1, 4):
+        try:
+            route_response = await autoware.set_goal(goal)
+        except (RuntimeError, TimeoutError) as exc:
+            print(f"[WARNING] Case {cirenid} route setup attempt {route_attempt} failed: {exc}.")
+        else:
+            if route_response.status.success:
+                break
+
+            print(
+                f"[WARNING] Case {cirenid} route setup attempt {route_attempt} "
+                f"was rejected: {route_response.status.message}."
+            )
+
+        await asyncio.sleep(1.0)
+    return route_response
+
+
 def record_has_collision(record_path: Path) -> bool:
     try:
         record_df = pd.read_csv(record_path)
@@ -79,7 +132,12 @@ async def run_dlt_until_collision_or_timeout(
         "--round-num",
         "1",
     ]
-    process = subprocess.Popen(cmd, start_new_session=True)
+    process = subprocess.Popen(
+        cmd,
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT,
+    )
     deadline = time.monotonic() + timeout_sec
 
     try:
@@ -108,8 +166,6 @@ async def run_case(
     delta_v_frames: list, skipped: list[int],
     verbose: bool, dlt_path: Path, output_dv_file: Path
 ):
-    if verbose: print(f" ---- Running case {case['cirenid']} ---- ")
-
     # open parameters file in DLT
     if verbose: print(" - Loading parameters file...")
     params_file_path = f"{dlt_path}/output/Autoware.Universe/case/{case['type']}/{case['type']}.json"
@@ -146,56 +202,16 @@ async def run_case(
         os.remove(record_path)
 
     if verbose: print(" - Setting Autoware parameters...")
-    param = av_locs[case['type']]
-    pos = PoseWithCovarianceStamped()
-    pos.pose.pose.position.x = float(param["x"])
-    pos.pose.pose.position.y = float(param["y"])
-    pos.pose.pose.orientation.x = float(param["o_x"])
-    pos.pose.pose.orientation.y = float(param["o_y"])
-    pos.pose.pose.orientation.z = float(param["o_z"])
-    pos.pose.pose.orientation.w = float(param["o_w"])
-
-    goal = PoseStamped()
-    goal.pose.position.x = float(param["g_x"])
-    goal.pose.position.y = float(param["g_y"])
-    goal.pose.orientation.x = float(param["g_o_x"])
-    goal.pose.orientation.y = float(param["g_o_y"])
-    goal.pose.orientation.z = float(param["g_o_z"])
-    goal.pose.orientation.w = float(param["g_o_w"])
+    init_pos, goal = get_pos_and_goal(av_locs, case['type'])
 
     # set pos and goal
-    localization_deadline = time.monotonic() + 30.0
-    pose_set = False
-    while time.monotonic() < localization_deadline:
-        autoware.pub_pos(pos)
-        localization_initialized = await autoware.wait_for_localization_initialized(timeout_sec=1.0)
-        pose_is_near_target = await autoware.wait_for_pose_near(pos, timeout_sec=1.0)
-        if localization_initialized and pose_is_near_target:
-            pose_set = True
-            break
-
+    pose_set = await set_pos(autoware, init_pos)
     if not pose_set:
         print(f"[WARNING] Case {case['cirenid']} initial pose did not update. Skipping.")
         skipped.append(case["cirenid"])
         return
 
-    route_response = None
-    for route_attempt in range(1, 4):
-        try:
-            route_response = await autoware.set_goal(goal)
-        except (RuntimeError, TimeoutError) as exc:
-            print(f"[WARNING] Case {case['cirenid']} route setup attempt {route_attempt} failed: {exc}.")
-        else:
-            if route_response.status.success:
-                break
-
-            print(
-                f"[WARNING] Case {case['cirenid']} route setup attempt {route_attempt} "
-                f"was rejected: {route_response.status.message}."
-            )
-
-        await asyncio.sleep(1.0)
-
+    route_response = await set_goal(autoware, goal, case['cirenid'])
     if route_response is None:
         print(f"[WARNING] Case {case['cirenid']} route setup failed. Skipping.")
         skipped.append(case["cirenid"])
@@ -251,6 +267,9 @@ async def run_case(
             f"[WARNING] Case {case['cirenid']} DLT attempt {attempt} failed "
             f"with return code {returncode}."
         )
+        await set_pos(autoware, init_pos)
+
+        
     
     if not collision:
         print(f"[WARNING] Case {case['cirenid']} ran {DLT_MAX_ATTEMPTS} times unsuccessfully. Skipping.")
