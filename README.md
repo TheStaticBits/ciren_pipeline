@@ -44,10 +44,9 @@ python -m ciren.calculate_injury_risks
 ## In-depth Overview of each File
 - in progress
 
-
 ## Updates:
-- To compile SRV files necessary for Autoware ROS integration, run the following command in the root directory:
+- To compile SRV files necessary for Autoware ROS integration used in `pipeline/parts/autoware_ros_client.py`, run the following commands from the root directory:
 ```bash
-cd srv/tier4_system_msgs
+cd tier4_system_msgs
 colcon build
 ```

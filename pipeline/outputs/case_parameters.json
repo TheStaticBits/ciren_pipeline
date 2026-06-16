@@ -1,8 +1,4 @@
 [
-	{"cirenid": 590, "type": "left_turn_turn", "parameters": {"max_speed": 1.34, "dis": 5, "sp": 11.11}},
- 	{"cirenid": 594, "type": "left_turn_turn", "parameters": {"max_speed": 7.16, "dis": 5, "sp": 22.22}},
- 	{"cirenid": 597, "type": "lane_departure_opposite", "parameters": {"max_speed": 27.19, "relative sp": 51.91, "dis": 40, "ratio": 1}},
- 	{"cirenid": 628, "type": "lane_departure_opposite", "parameters": {"max_speed": 0.0, "relative sp": 24.72, "dis": 40, "ratio": 1}},
- 	{"cirenid": 634, "type": "lane_departure_opposite", "parameters": {"max_speed": 7.51, "relative sp": 25.29, "dis": 40, "ratio": 1}}
-
+	{"cirenid": 597, "type": "lane_departure_opposite", "parameters": {"max_speed": 27.19, "relative sp": 51.91, "dis": 70, "ratio": 1}},
+	{"cirenid": 594, "type": "left_turn_turn", "parameters": {"max_speed": 7.16, "dis": 50, "sp": 22.22}}
 ]

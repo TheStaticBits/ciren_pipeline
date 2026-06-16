@@ -106,3 +106,12 @@ clarification questions prior to May 26th meeting:
 - Try to figure out how to adjust Autoware AV speed or positions
 - Try to automate running Autoware.
 - Fix bug with case parameters.json duplicating cases
+
+
+## for June 16th
+- autoware acceleration to max velocity (vehicle_cmd_gate/config/vehicle_cmd_gate_param.yaml)
+- adjust BV parameter generation more
+- left_turn_turn has max speed of 10, see if possible to make it quicker than 10.
+- bug fixing
+- hooking into CARLA for triple-cosim visualization
+- injury risk comparison graphical representation?
