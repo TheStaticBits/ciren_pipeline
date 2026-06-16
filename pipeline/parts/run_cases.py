@@ -4,7 +4,6 @@ import os, rclpy, json, subprocess, atexit, contextlib, asyncio, time, signal
 import pandas as pd
 from pathlib import Path
 
-import pipeline.parts.edit_speed as edit_speed
 import pipeline.parts.gen_delta_v as gen_delta_v
 import pipeline.parts.gen_injury_risks as injury_risk
 from pipeline.parts.autoware_ros_client import AutowareROSClient
@@ -20,8 +19,8 @@ DLT_MAX_ATTEMPTS = 10
 # o means orientation, g means goal
 
 
-def get_pos_and_goal(av_locs, type: str) -> tuple:
-    param = av_locs[type]
+def get_pos_and_goal(av_locs, scenario_type: str) -> tuple:
+    param = av_locs[scenario_type]
     pos = PoseWithCovarianceStamped()
     pos.pose.pose.position.x = float(param["x"])
     pos.pose.pose.position.y = float(param["y"])
@@ -125,7 +124,7 @@ async def run_dlt_until_collision_or_timeout(
         "python",
         f"{dlt_path}/DLT.py",
         "--gui",
-        "--scenario",
+        "--scenario-folder",
         case["type"],
         "--case-num",
         "0",
@@ -177,16 +176,17 @@ async def run_case(
         skipped.append(case["cirenid"])
         return
 
-    # set max speed using edit_speed.py
+    # set max speed in Autoware
     if verbose: print(" - Setting max speed...")
-    max_speed = case["parameters"]["max_speed"] # get max speed
-    case["parameters"].pop("max_speed") # does not need to set it in the case json below
-    edit_speed.main(f"{dlt_path}/env/route/Autoware.Universe/{case['type']}/map", max_speed)
+    max_speed = case["parameters"]["max_speed"] # max_speed is already in m/s
+    autoware.set_max_velocity(max_speed)
     
     # set parameters in the DLT file
     if verbose: print(" - Setting parameters file...")
+    # every element except max_speed, to set in the parameters file
     for key, val in case["parameters"].items():
-        param_file["low"][0][key] = val
+        if key != "max_speed":
+            param_file["low"][0][key] = val
     
     # output DLT file
     with open(params_file_path, "w") as file:
@@ -336,7 +336,7 @@ async def run_all(verbose: bool, params_json: Path, av_locs_json: Path, master_c
 
     # run all cases
     for index, case in enumerate(data, start=1):
-        print(f" ---- Case {index}/{len(data)}: {case['cirenid']} ({case['type']}) ---- ")
+        print(f"\n\n ---- Case {index}/{len(data)}: {case['cirenid']} ({case['type']}) ---- ")
         await run_case(case, autoware, master_df, av_locs, delta_v_frames, skipped, verbose, dlt_path, output_dv_file)
 
     # Print skipped cases

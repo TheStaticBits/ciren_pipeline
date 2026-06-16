@@ -14,7 +14,9 @@ from autoware_adapi_v1_msgs.msg import (
     RouteState,
 )
 from autoware_adapi_v1_msgs.srv import ClearRoute, SetRoutePoints
+from tier4_planning_msgs.msg import VelocityLimit
 from tier4_system_msgs.srv import ChangeAutowareControl, ChangeOperationMode
+
 
 class AutowareROSClient(Node):
     def __init__(self):
@@ -55,6 +57,12 @@ class AutowareROSClient(Node):
         self.set_route_points_client = self.create_client(
             SetRoutePoints,
             "/api/routing/set_route_points",
+        )
+
+        self.max_velocity_publisher = self.create_publisher(
+            VelocityLimit,
+            "/planning/scenario_planning/max_velocity_default",
+            pose_qos,
         )
 
         state_qos = QoSProfile(
@@ -111,6 +119,21 @@ class AutowareROSClient(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "map"
         self.pos_publisher.publish(msg)
+
+    def set_max_velocity(self, max_velocity_mps: float):
+        if max_velocity_mps <= 0:
+            self.get_logger().warning(
+                f"Skipping non-positive Autoware max velocity limit: {max_velocity_mps}"
+            )
+            return
+
+        msg = VelocityLimit()
+        msg.stamp = self.get_clock().now().to_msg()
+        msg.max_velocity = float(max_velocity_mps)
+        msg.sender = "ciren_pipeline"
+
+        self._wait_for_subscriber(self.max_velocity_publisher)
+        self.max_velocity_publisher.publish(msg)
 
     def _wait_for_subscriber(self, publisher: Publisher, timeout_sec: float = 5.0):
         deadline = time.monotonic() + timeout_sec
@@ -285,7 +308,6 @@ class AutowareROSClient(Node):
             "Waiting for control service...",
         )
 
-
     async def set_auto_start(self, state: bool) -> ChangeOperationMode.Response:
         req = ChangeOperationMode.Request()
         req.mode = 2 if state else 1 # 2 is auto control, 1 is stopped
@@ -295,12 +317,3 @@ class AutowareROSClient(Node):
             req,
             "Waiting for auto state service...",
         )
-
-
-if __name__ == "__main__":
-    rclpy.init()
-    node = AutowareROSClient()
-    pos = PoseWithCovarianceStamped()
-    pos.pose.pose.position.x = 100.0
-    pos.pose.pose.position.y = 100.0
-    node.pub_pos(pos)
