@@ -2,11 +2,18 @@ import math, argparse
 import pandas as pd
 from pathlib import Path
 
+def _scalar_float(value) -> float:
+    if isinstance(value, pd.Series):
+        value = value.iloc[0]
+    return float(value)
+
 # folder must contain case CSVs. Usually in Driver-Licensing-Test/output/test-data/test-round-[N]/[test-name]
 # optionally, set masses (kg) of AV and challenger
 # this function returns a list of dictionaries, where each dictionary is a row in an excel or csv file
 def process_csv(folder: Path, cirenid: int, cases: int, verbose: bool, m_av: int, m_ch: int) -> list:
     results = []
+    m_av = _scalar_float(m_av)
+    m_ch = _scalar_float(m_ch)
 
     if verbose: print(f"Processing {cases} cases from {folder}.")
 
@@ -17,17 +24,17 @@ def process_csv(folder: Path, cirenid: int, cases: int, verbose: bool, m_av: int
         df = pd.read_csv(csv_path)
 
         last = df.iloc[-1]   # last row
-        timestamp = last["timestamp"]
+        timestamp = _scalar_float(last["timestamp"])
 
         # find first row from last that does not have a timestamp of 0
         for i in range(df.size):
             if timestamp != 0: break
             last = df.iloc[-1 - i]
-            timestamp = last["timestamp"]
+            timestamp = _scalar_float(last["timestamp"])
         
         # extract speeds
-        v_av = last["AV sp"]
-        v_ch = last["challenger sp"]
+        v_av = _scalar_float(last["AV sp"])
+        v_ch = _scalar_float(last["challenger sp"])
 
         # (OLD) 1D conservation of momentum
         v_final = (m_av * v_av + m_ch * v_ch) / (m_av + m_ch)
@@ -36,9 +43,11 @@ def process_csv(folder: Path, cirenid: int, cases: int, verbose: bool, m_av: int
 
         # use heading angle to find speed in x and y directions
         # because the last entry sometimes reads zero for lon/lat speed values
-        angle_av = math.radians(last["AV heading"]) # 0 degrees is up, positive = clockwise
-        angle_ch = math.radians(last["challenger heading"])
-        net_angle = last["AV heading"] - last["challenger heading"]
+        av_heading = _scalar_float(last["AV heading"])
+        ch_heading = _scalar_float(last["challenger heading"])
+        angle_av = math.radians(av_heading) # 0 degrees is up, positive = clockwise
+        angle_ch = math.radians(ch_heading)
+        net_angle = av_heading - ch_heading
 
         v_av_x = v_av * math.sin(angle_av)
         v_av_y = v_av * math.cos(angle_av)

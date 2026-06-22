@@ -50,3 +50,7 @@ python -m ciren.calculate_injury_risks
 cd tier4_system_msgs
 colcon build
 ```
+
+- Edit these Autoware config files to make the simulation more accurate:
+`autoware/src/universe/autoware.universe/planning/motion_velocity_smoother/config/default_motion_velocity_smoother.param.yaml`
+`autoware/src/launcher/autoware_launch/autoware_launch/config/planning/scenario_planning/common/common.param.yaml`

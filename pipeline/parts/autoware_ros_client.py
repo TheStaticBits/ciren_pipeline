@@ -305,7 +305,7 @@ class AutowareROSClient(Node):
         return await self._call_service(
             self.autoware_state_client,
             req,
-            "Waiting for control service...",
+            "Waiting for Autoware... (did you start it?)",
         )
 
     async def set_auto_start(self, state: bool) -> ChangeOperationMode.Response:
