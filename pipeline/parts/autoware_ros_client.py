@@ -6,7 +6,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSReliabilityPolicy
-from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped, TwistStamped
 from nav_msgs.msg import Odometry
 from autoware_adapi_v1_msgs.msg import (
     LocalizationInitializationState,
@@ -63,6 +63,11 @@ class AutowareROSClient(Node):
             VelocityLimit,
             "/planning/scenario_planning/max_velocity_default",
             pose_qos,
+        )
+        self.simulator_current_twist_publisher = self.create_publisher(
+            TwistStamped,
+            "/simulation/input/currenttwist",
+            10,
         )
 
         state_qos = QoSProfile(
@@ -134,6 +139,26 @@ class AutowareROSClient(Node):
 
         self._wait_for_subscriber(self.max_velocity_publisher)
         self.max_velocity_publisher.publish(msg)
+
+    async def set_simulator_speed(
+        self,
+        speed_mps: float,
+    ) -> bool:
+        if speed_mps <= 0:
+            self.get_logger().warning(
+                f"Skipping non-positive simulator speed seed: {speed_mps}"
+            )
+            return False
+
+        twist_msg = TwistStamped()
+        twist_msg.header.stamp = self.get_clock().now().to_msg()
+        twist_msg.header.frame_id = "base_link"
+        twist_msg.twist.linear.x = float(speed_mps)
+
+        self._wait_for_subscriber(self.simulator_current_twist_publisher)
+        self.simulator_current_twist_publisher.publish(twist_msg)
+        rclpy.spin_once(self, timeout_sec=0.1)
+        return True
 
     def _wait_for_subscriber(self, publisher: Publisher, timeout_sec: float = 5.0):
         deadline = time.monotonic() + timeout_sec

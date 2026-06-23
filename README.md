@@ -34,7 +34,7 @@ python -m pipeline.gen_mastercases
 python -m pipeline.gen_injury_risks
 ```
 - If the Gemini categorization step pauses without sending another question after the AI has responded, press enter and let it continue. 
-- The output of the injury risks of the simulated cases can be found in `pipeline/outputs/sim_injury_risks.csv`.
+- The output of the injury risks of the simulated cases can be found in `outputs/sim_injury_risks.csv`.
 - To calculate injury risks on the scraped cases with real data, run the following command:
 ```bash
 python -m ciren.calculate_injury_risks

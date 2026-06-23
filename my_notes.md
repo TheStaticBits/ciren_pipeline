@@ -96,7 +96,7 @@ conda activate terasim-cosim
 - ✓ Look through config.yaml files and try to understand what does what
 - ✓ Find one demo case for each of the test cases for the MCity meeting
 - ✓ Change delta-v calculations to be in both x and y directions
-- ✓ Write injury-risk calculation code to iterate through pipeline/outputs/case_parameters.json
+- ✓ Write injury-risk calculation code to iterate through outputs/case_parameters.json
 - ✓ LLM for categorization
     - check LLM categorization
 
@@ -145,3 +145,8 @@ clarification questions prior to May 26th meeting:
 - Toggle between freehand and square select by pressing `S`
 - Select roads and press `Ctrl + F` and type `type:relation type=lanelet parent selected` to get the lanelet options
 - Then change speed_limit in the sidebar.
+
+stop_at_goal:
+```bash
+ros2 param get /planning/scenario_planning/motion_velocity_smoother stop_at_goal
+```

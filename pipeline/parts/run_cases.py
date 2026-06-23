@@ -12,6 +12,7 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 DLT_PATH = Path("/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test")
 DLT_CASE_TIMEOUT_SEC = 180.0
 DLT_MAX_ATTEMPTS = 10
+AV_SPEED_SET_DELAY_SEC = 7.0
 
 # av_locations.json information:
 # These numbers were taken from MCity's autoware repo,
@@ -118,6 +119,7 @@ async def run_dlt_until_collision_or_timeout(
     autoware: AutowareROSClient,
     dlt_path: Path,
     record_path: Path,
+    desired_speed_mps: float,
     timeout_sec: float = DLT_CASE_TIMEOUT_SEC,
 ) -> tuple[bool, int | None]:
     cmd = [
@@ -142,8 +144,22 @@ async def run_dlt_until_collision_or_timeout(
     try:
         await asyncio.sleep(2.0)
         await autoware.set_auto_start(True)
+        simulation_start = time.monotonic()
+        speed_was_set = False
 
         while time.monotonic() < deadline:
+            if (
+                not speed_was_set
+                and time.monotonic() - simulation_start >= AV_SPEED_SET_DELAY_SEC
+            ):
+                speed_was_set = True
+                speed_set = await autoware.set_simulator_speed(desired_speed_mps)
+                if not speed_set:
+                    print(
+                        f"[WARNING] Case {case['cirenid']} failed to set AV speed "
+                        f"to {desired_speed_mps:.2f} m/s at {AV_SPEED_SET_DELAY_SEC:.1f}s."
+                    )
+
             if record_has_collision(record_path):
                 return True, process.poll()
 
@@ -241,6 +257,7 @@ async def run_case(
                 autoware,
                 dlt_path,
                 record_path,
+                max_speed,
             )
         except Exception as exc:
             print(f"[WARNING] Case {case['cirenid']} simulation attempt failed: {exc}. Skipping.")
@@ -349,13 +366,13 @@ async def run_all(verbose: bool, params_json: Path, av_locs_json: Path, master_c
 async def main():
     await run_all(
         verbose=True,
-        params_json="pipeline/outputs/case_parameters.json",
+        params_json="outputs/case_parameters.json",
         av_locs_json="pipeline/parts/av_locations.jsonc",
         master_cases_file="./ciren_database/master_cases.xlsx",
         dlt_path=DLT_PATH,
-        output_dv_file="pipeline/outputs/delta_v_results.csv",
+        output_dv_file="outputs/delta_v_results.csv",
         risk_model_file="ciren/CISS_injury_models_20210415.xlsx",
-        output_injury_file="pipeline/outputs/sim_injury_risks.csv"
+        output_injury_file="outputs/sim_injury_risks.csv"
     )
 
 

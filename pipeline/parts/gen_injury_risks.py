@@ -61,8 +61,8 @@ def main(delta_v_file: Path, master_file: Path, model_file: Path, output_file: P
 
 if __name__ == "__main__":
     main(
-        "pipeline/outputs/delta_v_results.csv",
+        "outputs/delta_v_results.csv",
         "ciren_database/master_cases.xlsx",
         "ciren/CISS_injury_models_20210415.xlsx",
-        "pipeline/outputs/sim_injury_risks.csv"
+        "outputs/sim_injury_risks.csv"
     )

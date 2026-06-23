@@ -380,9 +380,9 @@ def main():
     print("="*80)
     
     # File paths
-    cases_file = rf'..\ciren_database\master_cases.xlsx'  # the excel file with the scraped ciren dataset
-    model_file = 'CISS_injury_models_20210415.xlsx'
-    output_dir = Path('output')
+    cases_file = rf'ciren_database/master_cases.xlsx'  # the excel file with the scraped ciren dataset
+    model_file = 'ciren/CISS_injury_models_20210415.xlsx'
+    output_dir = Path('outputs')
     output_dir.mkdir(parents=True, exist_ok = True)
     
     # 1. Load the filtered cases data

@@ -107,8 +107,8 @@ def gen_case_parameters(folder_out: Path, output: Path, master_cases_file: Path,
 
 def main():
     gen_case_parameters(
-        "./pipeline/outputs",
-        "./pipeline/outputs/case_parameters.json", 
+        "./outputs",
+        "./outputs/case_parameters.json", 
         "./ciren_database/master_cases.xlsx", 
         "~/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test"
     )
