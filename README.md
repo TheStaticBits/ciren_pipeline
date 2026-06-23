@@ -39,7 +39,7 @@ python -m pipeline.gen_injury_risks
 ```bash
 python -m ciren.calculate_injury_risks
 ```
-- This will output to `ciren/output/injury_risk_calculations.csv`.
+- This will output to `outputs/injury_risk_calculations.csv`.
 
 ## In-depth Overview of each File
 - in progress

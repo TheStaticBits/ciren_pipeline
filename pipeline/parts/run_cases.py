@@ -371,7 +371,7 @@ async def main():
         master_cases_file="./outputs/master_cases.xlsx",
         dlt_path=DLT_PATH,
         output_dv_file="outputs/delta_v_results.csv",
-        risk_model_file="ciren/CISS_injury_models_20210415.xlsx",
+        risk_model_file="ciren_database/CISS_injury_models_20210415.xlsx",
         output_injury_file="outputs/sim_injury_risks.csv"
     )
 

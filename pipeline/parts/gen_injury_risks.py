@@ -63,6 +63,6 @@ if __name__ == "__main__":
     main(
         "outputs/delta_v_results.csv",
         "outputs/master_cases.xlsx",
-        "ciren/CISS_injury_models_20210415.xlsx",
+        "ciren_database/CISS_injury_models_20210415.xlsx",
         "outputs/sim_injury_risks.csv"
     )

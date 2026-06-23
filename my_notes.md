@@ -140,13 +140,24 @@ clarification questions prior to May 26th meeting:
 - Generate graph of "max_speed" versus actual AV speed 5 seconds before collision (in DLT output) for each of the three cases, to see if there's a cap, and see if we can adjust that max speed to match the case's known speed. 
 - If that does not work and we can't adjust that manually, see if there is a way to set the AV at a location 5 seconds before the crash directly, with a set speed already. Then, see if we can change how the BV behaves to fast-forward it to 5 seconds before the crash. This would allow us to skip to the moment before the crash and see how the AV handles it.
 
-[JOSM](https://chatgpt.com/c/6a395a33-37fc-83ea-8a2c-eff74d755476):
+### [JOSM](https://chatgpt.com/c/6a395a33-37fc-83ea-8a2c-eff74d755476)
 - Open filter by `Alt + Shift + F`, type `type:node` and hit `select`
 - Toggle between freehand and square select by pressing `S`
 - Select roads and press `Ctrl + F` and type `type:relation type=lanelet parent selected` to get the lanelet options
 - Then change speed_limit in the sidebar.
 
-stop_at_goal:
+### stop_at_goal
 ```bash
 ros2 param get /planning/scenario_planning/motion_velocity_smoother stop_at_goal
 ```
+
+### Things done:
+- Changed min/max acc/jerk
+- Added stop_at_goal ros2 flag to allow faster speeds through the whole course of motion
+- Added ros2 subscription to set the vehicle speed without impacting its position or rotation
+- Changed JOSM map speed limits (and position?)
+
+## Notes from Tuesday, June 23rd
+- Adjust time that the speed is set so that it is approximately the correct speed 5 seconds before collision
+- Change road speed limits to not impact vehicle speed
+- Run 50-100 cases
