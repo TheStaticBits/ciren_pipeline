@@ -15,26 +15,26 @@ import ciren_database.flatten_exports_to_master as flatten
 def gen_master_cases(abs_path: Path, case_nums: list[int]):
     # 1. Run scrape.py
     print("1. Scraping crashes...")
-    scrape.main(abs_path / Path("ciren_database/CrashExports"), case_nums)
+    scrape.main(abs_path / Path("outputs/CrashExports"), case_nums)
     print("1. Scraping crashes complete!")
 
     # Filter out cases that do not involve 2 vehicles.
-    case_nums = categorize.filter_num_vehicles(abs_path / Path("ciren_database/CrashExports"), case_nums)
+    case_nums = categorize.filter_num_vehicles(abs_path / Path("outputs/CrashExports"), case_nums)
 
     # 2. Run scrape_summaries.py on the rest of the cases
     print("2\n\n. Scraping crash summaries...")
-    case_nums = scrape_summary.main(abs_path / Path("ciren_database/CrashExports"), abs_path / Path("ciren_database/ciren_crash_summaries.xlsx"), case_nums)
+    case_nums = scrape_summary.main(abs_path / Path("outputs/CrashExports"), abs_path / Path("outputs/ciren_crash_summaries.xlsx"), case_nums)
     print("2. Scraping crash summaries complete!")
 
     # 3. Use LLM API to categorize into one of the 14 available, filtering out bad cases
     # TODO
     print("\n\n3. Categorizing crashes...")
-    categorize.main(case_nums, abs_path / Path("ciren_database/ciren_crash_summaries.xlsx"), abs_path / Path("ciren_database/ciren_crash_summaries_categorized.xlsx"))
+    categorize.main(case_nums, abs_path / Path("outputs/ciren_crash_summaries.xlsx"), abs_path / Path("outputs/ciren_crash_summaries_categorized.xlsx"))
     print("3. Categorizing crashes complete!")
 
     # 4. Run flatten_exports_to_master.py, excluding cases that were not categorized in step 3
     print("\n\n4. Flattening crash data into master file...")
-    flatten.main(abs_path / Path("ciren_database/CrashExports"), abs_path / Path("ciren_database/master_cases.xlsx"), Path("ciren_database/ciren_crash_summaries_categorized.xlsx"), 0, None, 25)
+    flatten.main(abs_path / Path("outputs/CrashExports"), abs_path / Path("outputs/master_cases.xlsx"), Path("outputs/ciren_crash_summaries_categorized.xlsx"), 0, None, 25)
     print("4. Finished flattening crash data!")
 
 

@@ -214,4 +214,4 @@ def main(ciren_ids: list[int], input_summaries_file: Path, output_file: Path):
 
 
 if __name__ == "__main__":
-    main(None, "ciren_database/ciren_crash_summaries.xlsx", "ciren_database/ciren_crash_summaries_categorized.xlsx")
+    main(None, "outputs/ciren_crash_summaries.xlsx", "outputs/ciren_crash_summaries_categorized.xlsx")

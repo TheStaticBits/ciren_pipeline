@@ -6,7 +6,7 @@ from pathlib import Path
 # Add parent directory to path for ciren imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-import ciren.calculate_injury_risks as calc_risk
+import ciren_database.calculate_injury_risks as calc_risk
 
 def main(delta_v_file: Path, master_file: Path, model_file: Path, output_file: Path) -> None:
     # read in input files
@@ -62,7 +62,7 @@ def main(delta_v_file: Path, master_file: Path, model_file: Path, output_file: P
 if __name__ == "__main__":
     main(
         "outputs/delta_v_results.csv",
-        "ciren_database/master_cases.xlsx",
+        "outputs/master_cases.xlsx",
         "ciren/CISS_injury_models_20210415.xlsx",
         "outputs/sim_injury_risks.csv"
     )

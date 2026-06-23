@@ -368,7 +368,7 @@ async def main():
         verbose=True,
         params_json="outputs/case_parameters.json",
         av_locs_json="pipeline/parts/av_locations.jsonc",
-        master_cases_file="./ciren_database/master_cases.xlsx",
+        master_cases_file="./outputs/master_cases.xlsx",
         dlt_path=DLT_PATH,
         output_dv_file="outputs/delta_v_results.csv",
         risk_model_file="ciren/CISS_injury_models_20210415.xlsx",

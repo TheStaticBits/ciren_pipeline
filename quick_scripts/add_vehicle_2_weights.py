@@ -3,8 +3,8 @@
 from pathlib import Path
 import pandas as pd
 
-files = sorted(Path("ciren_database/CrashExports").glob("CrashExport-*.xlsx"))
-master = pd.read_excel("ciren_database/master_cases.xlsx")
+files = sorted(Path("outputs/CrashExports").glob("CrashExport-*.xlsx"))
+master = pd.read_excel("outputs/master_cases.xlsx")
 # ensure cirenid is the index so we can assign by loc
 master.set_index("cirenid", inplace=True)
 
@@ -25,5 +25,5 @@ for file in files:
         master.loc[ciren_id, "vehicle2_weight"] = weight
 
 # write updated master to a new file
-master.reset_index().to_excel("ciren_database/master_cases_with_weights.xlsx", index=False)
+master.reset_index().to_excel("outputs/master_cases_with_weights.xlsx", index=False)
     

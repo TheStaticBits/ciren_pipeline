@@ -109,7 +109,7 @@ def main():
     gen_case_parameters(
         "./outputs",
         "./outputs/case_parameters.json", 
-        "./ciren_database/master_cases.xlsx", 
+        "./outputs/master_cases.xlsx", 
         "~/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test"
     )
 

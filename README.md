@@ -2,7 +2,7 @@
 
 ### Pipeline Stages
 
-1. Download CIREN case export excel files (`ciren_database/CrashExports/CrashExport-*.xlsx`)
+1. Download CIREN case export excel files (`outputs/CrashExports/CrashExport-*.xlsx`)
 2. Filter out cases that do not involve specifically 2 vehicles
 3. Scrape crash summaries for the remaining cases
 4. Categorize cases into predefined scenarios using Gemini, and filter out any that do not match the strict 11 cases that can be simulated
