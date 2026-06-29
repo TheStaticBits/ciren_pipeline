@@ -18,20 +18,40 @@ CHROME_PROFILE = "/home/mzjia/chrome-profile/google-chrome"
 CHROME_BINARY = "/usr/bin/google-chrome"
 
 
-def load_existing_categorizations(output_file: Path) -> tuple[pd.DataFrame, set[int]]:
+def _has_saved_scenario(value) -> bool:
+    return pd.notna(value) and str(value).strip() != ""
+
+
+def _is_zero_scenario(value) -> bool:
+    if not _has_saved_scenario(value):
+        return False
+    try:
+        return float(value) == 0.0
+    except (TypeError, ValueError):
+        return str(value).strip() == "0"
+
+
+def load_existing_categorizations(output_file: Path) -> tuple[pd.DataFrame, set[int], set[int]]:
     if not output_file.exists():
-        return pd.DataFrame(columns=["cirenid", "scenario", "crash_summary"]), set()
+        return pd.DataFrame(columns=["cirenid", "scenario", "crash_summary"]), set(), set()
 
     existing = pd.read_excel(output_file)
     existing = existing.loc[:, ~existing.columns.astype(str).str.startswith("Unnamed")]
-    if "cirenid" not in existing.columns:
-        return pd.DataFrame(columns=["cirenid", "scenario", "crash_summary"]), set()
+    if "cirenid" not in existing.columns or "scenario" not in existing.columns:
+        return pd.DataFrame(columns=["cirenid", "scenario", "crash_summary"]), set(), set()
 
-    ids = {
-        int(cirenid)
-        for cirenid in existing["cirenid"].dropna()
-    }
-    return existing, ids
+    existing_ids = set()
+    successful_ids = set()
+    for row in existing.itertuples():
+        if pd.isna(row.cirenid) or not _has_saved_scenario(row.scenario):
+            continue
+
+        case_id = int(row.cirenid)
+        existing_ids.add(case_id)
+        if not _is_zero_scenario(row.scenario):
+            successful_ids.add(case_id)
+
+    return existing, existing_ids, successful_ids
 
 
 def save_categorizations(output_file: Path, rows: list[dict]) -> None:
@@ -170,18 +190,18 @@ def wait_for_finish_to_send(driver):
 
 # Assumes you have Gemini Pro, hooking into your browser,
 # typing prompts and receiving categorizations 10 at a time.    
-def main(ciren_ids: list[int] | set[int] | None, input_summaries_file: Path, output_file: Path):
+def main(ciren_ids: list[int] | set[int] | None, input_summaries_file: Path, output_file: Path) -> set[int]:
     output_file = Path(output_file)
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    existing_df, existing_ids = load_existing_categorizations(output_file)
+    existing_df, existing_ids, successful = load_existing_categorizations(output_file)
 
     # load input summaries
     df = pd.read_excel(input_summaries_file)
     cases_to_categorize = set()
     for case in df.itertuples():
         case_id = int(case.cirenid)
-        if case_id not in ciren_ids:
+        if ciren_ids is not None and case_id not in ciren_ids:
             continue
         if case_id in existing_ids:
             print(f"Skipping case {case_id}: already categorized in {output_file}")
@@ -190,7 +210,7 @@ def main(ciren_ids: list[int] | set[int] | None, input_summaries_file: Path, out
 
     if not cases_to_categorize:
         print(f"Categorization complete. All requested cases are already categorized in {output_file}.")
-        return ciren_ids
+        return successful & ciren_ids
 
     import pyperclip
     from selenium import webdriver
@@ -211,6 +231,7 @@ def main(ciren_ids: list[int] | set[int] | None, input_summaries_file: Path, out
     text_box.click()
 
     result = existing_df.to_dict("records")
+
     curr_response = 1
 
     # iterate through all cases
@@ -236,9 +257,12 @@ def main(ciren_ids: list[int] | set[int] | None, input_summaries_file: Path, out
             print(f"       Result: {response}")
             result.append({
                 "cirenid": case_id,
-                "scenario": str(response),
+                "scenario": response if response != "None" else 0,
                 "crash_summary": case.crash_summary,
             })
+
+            if response != "None": 
+                successful.add(case_id)
 
             # output result to file
             save_categorizations(output_file, result)
@@ -246,6 +270,8 @@ def main(ciren_ids: list[int] | set[int] | None, input_summaries_file: Path, out
 
         else:
             print(f"[WARNING] Skipping case {case_id}. Response: {response}")
+    
+    return successful & ciren_ids
 
 
 if __name__ == "__main__":

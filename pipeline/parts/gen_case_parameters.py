@@ -17,6 +17,7 @@ SPEED_BOUNDS_MPS = {
     "right_turn_straight": (1.0, 6.0),
     "right_turn_turn": (1.0, 10.0),
 }
+BOUND_SPEED = True
 
 # DLT scenario distance/lateral-offset limits copied from each scenario's config.yaml.
 DISTANCE_BOUNDS_M = {
@@ -96,7 +97,13 @@ def _case_vehicle_speed_mps(row) -> float:
     return speed if speed is not None else 8.3
 
 # Choose the challenger/BV speed from challenger data first, then subject/road fallbacks.
-def _challenger_speed_mps(row, lower: float = None, upper: float = None) -> float:
+def _challenger_speed_mps(row, scenario: str = None) -> float:
+    if scenario and BOUND_SPEED:
+        lower, upper = SPEED_BOUNDS_MPS[scenario]
+    else:
+        lower = None
+        upper = None
+
     speed = _kmph_field_to_mps(
         row,
         [
@@ -249,8 +256,7 @@ def gen_single_params(row) -> dict[str, float]:
     elif row.scenario == "car_following":
         # sp is the challenger target speed before braking, acc controls how it
         # reaches that speed, and dec controls the stopping phase.
-        low, high = SPEED_BOUNDS_MPS[row.scenario]
-        params["sp"] = _challenger_speed_mps(row, low, high)
+        params["sp"] = _challenger_speed_mps(row, row.scenario)
         params["acc"] = _car_following_acc(row)
         params["dec"] = _car_following_dec(row)
 
@@ -274,29 +280,25 @@ def gen_single_params(row) -> dict[str, float]:
         # dis is the initial longitudinal timing distance; sp is the BV's
         # constant speed through the simulation.
         params["dis"] = _distance_from_severity(row, row.scenario)
-        low, high = SPEED_BOUNDS_MPS[row.scenario]
-        params["sp"] = _challenger_speed_mps(row, low, high)
+        params["sp"] = _challenger_speed_mps(row, row.scenario)
 
     elif row.scenario == "left_turn_turn":
         # dis controls how close the AV is to turning when the challenger starts;
         # sp is the challenger speed while crossing the intersection.
         params["dis"] = _distance_from_severity(row, row.scenario)
-        low, high = SPEED_BOUNDS_MPS[row.scenario]
-        params["sp"] = _challenger_speed_mps(row, low, high)
+        params["sp"] = _challenger_speed_mps(row, row.scenario)
 
     elif row.scenario == "right_turn_straight":
         # dis is how far the AV has traveled when the challenger starts; values
         # too low or high can miss the collision path. sp is challenger speed.
         params["dis"] = _distance_from_severity(row, row.scenario)
-        low, high = SPEED_BOUNDS_MPS[row.scenario]
-        params["sp"] = _challenger_speed_mps(row, low, high)
+        params["sp"] = _challenger_speed_mps(row, row.scenario)
 
     elif row.scenario == "right_turn_turn":
         # dis is the AV distance from the intersection when the challenger
         # starts; sp is challenger travel speed.
         params["dis"] = _distance_from_severity(row, row.scenario)
-        low, high = SPEED_BOUNDS_MPS[row.scenario]
-        params["sp"] = _challenger_speed_mps(row, low, high)
+        params["sp"] = _challenger_speed_mps(row, row.scenario)
 
     elif row.scenario == "vehicle_encroachment":
         # dis is the in-lane lateral offset, positive east; angle is positive
@@ -329,7 +331,6 @@ def gen_case_parameters(folder_out: Path, output: Path, master_cases_file: Path,
     # iterate through each case in master_cases
     master = pd.read_excel(master_cases_file)
     for row in master.itertuples():
-        if row.scenario == "None": continue
         # get metadata for each row
         row_dict: dict = { "cirenid": row.cirenid, "type": row.scenario }
         row_dict["parameters"] = gen_single_params(row)

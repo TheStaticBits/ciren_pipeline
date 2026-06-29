@@ -179,7 +179,7 @@ def main(input_folder: Path, output_file: Path, ciren_ids: set[int]) -> set[int]
                     print(f"  Extracted summary ({len(crash_summary)} chars)")
                     ws.append([case_id, crash_summary])
                     wb.save(output_file)
-                    successful_cases.append(case_id)
+                    successful_cases.add(case_id)
                 else:
                     print("  Crash summary not found")
             except Exception as exc:

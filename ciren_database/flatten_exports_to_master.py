@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,11 @@ import pandas as pd
 DEFAULT_INPUT = Path(rf"D:\UMich\Senior Year\umtri\clean\ciren_database\CrashExports")  # path to the downloaded xlsx files
 DEFAULT_CATEGORIZED = Path(rf"D:\UMich\Senior Year\umtri\clean\ciren_database\ciren_crash_summaries_categorized.xlsx")  # xlsx file containing the categorized cases
 DEFAULT_OUTPUT = Path(rf"D:\UMich\Senior Year\umtri\clean\ciren_database\master_cases.xlsx")  # output file from running this script
+
+
+def _cirenid_from_filename(xlsx_path: Path) -> int | None:
+    match = re.match(r"CrashExport-(\d+)-.*\.xlsx$", xlsx_path.name)
+    return int(match.group(1)) if match else None
 
 
 def _safe(v: Any) -> Any:
@@ -82,7 +88,7 @@ def _pick_series_for_veh(df: pd.DataFrame, vehno, strict: bool = False) -> pd.Da
     return df
 
 
-def _compute_edr_precrash(edrpre: pd.DataFrame, vehno, prefix: str="") -> dict[str, Any]:
+def _compute_edr_precrash(edrpre: pd.DataFrame, vehno, prefix: str = "") -> dict[str, Any]:
     local = _pick_series_for_veh(edrpre, vehno, strict=True)
     if local.empty:
         return {
@@ -131,7 +137,7 @@ def _compute_edr_precrash(edrpre: pd.DataFrame, vehno, prefix: str="") -> dict[s
     }
 
 
-def _compute_edr_postcrash(edrpost: pd.DataFrame, vehno, prefix: str="") -> dict[str, Any]:
+def _compute_edr_postcrash(edrpost: pd.DataFrame, vehno, prefix: str = "") -> dict[str, Any]:
     local = _pick_series_for_veh(edrpost, vehno, strict=True)
     if local.empty:
         return {
@@ -166,6 +172,7 @@ def _compute_edr_postcrash(edrpost: pd.DataFrame, vehno, prefix: str="") -> dict
 
 
 def flatten_one_file(xlsx_path: Path) -> dict[str, Any]:
+    cirenid = _cirenid_from_filename(xlsx_path)
     cirencase = _read_sheet(xlsx_path, "CIRENCASE")
     crash = _read_sheet(xlsx_path, "CRASH")
     gv = _read_sheet(xlsx_path, "GV")
@@ -177,7 +184,6 @@ def flatten_one_file(xlsx_path: Path) -> dict[str, Any]:
     vehspec = _read_sheet(xlsx_path, "VEHSPEC")
     injury = _read_sheet(xlsx_path, "INJURY")
 
-    cirenid = _pick(cirencase, "CIRENID")
     caseid = _pick(cirencase, "CASEID") or _pick(crash, "CASEID")
     vehno = _pick(cirencase, "VEHNO")
     challenger_vehno = 2 if vehno == 1 else 1 if vehno == 2 else None
@@ -350,6 +356,7 @@ def build_master(
     start_index: int = 0,
     max_files: int | None = None,
     checkpoint_every: int = 25,
+    ciren_ids: set[int] = None
 ) -> tuple[pd.DataFrame, list[int]]:
     xlsx_files = sorted(input_dir.glob("CrashExport-*.xlsx"))
     if not xlsx_files:
@@ -360,20 +367,32 @@ def build_master(
         xlsx_files = xlsx_files[:max_files]
 
     allowed = _load_allowed_cases(categorized_file)
-    allowed_ids = set(allowed["cirenid"])
+    allowed_lookup = allowed.set_index("cirenid")
+    allowed_ids = set(allowed_lookup.index)
+    requested_ids = {str(cirenid) for cirenid in ciren_ids} if ciren_ids is not None else None
 
+    i = 0
     rows = []
     successful_ciren_ids: list[int] = []
-    for i, xlsx in enumerate(xlsx_files, start=1):
-        print(f"[{i}/{len(xlsx_files)}] {xlsx.name}")
-        row = flatten_one_file(xlsx)
-        cirenid_str = str(row.get("cirenid")) if row.get("cirenid") is not None else None
+    for xlsx in xlsx_files:
+
+        cirenid = _cirenid_from_filename(xlsx)
+        if cirenid is None:
+            print(f"Skipping Case: could not parse CIREN ID from filename")
+            continue
+
+        cirenid_str = str(cirenid)
+        if requested_ids is not None and cirenid_str not in requested_ids:
+            continue
         if cirenid_str not in allowed_ids:
             continue
-        else:
-            successful_ciren_ids.append(int(cirenid_str))
+        
+        i += 1
+        print(f"[{i}/{len(ciren_ids)}] {xlsx.name}")
+        row = flatten_one_file(xlsx)
+        successful_ciren_ids.append(cirenid)
 
-        match = allowed.loc[allowed["cirenid"] == cirenid_str].iloc[0]
+        match = allowed_lookup.loc[cirenid_str]
         row["crash_summary"] = match["crash_summary"]
         row["scenario"] = match["scenario"]
         rows.append(row)
@@ -391,7 +410,7 @@ def build_master(
 
 
 # returns successful ciren case IDs
-def main(input_folder: Path, output_file: Path, input_categorized: Path, start_index: int, max_files: int, checkpoint_every: int) -> list[int]:
+def main(input_folder: Path, output_file: Path, input_categorized: Path, start_index: int, max_files: int, checkpoint_every: int, ciren_ids: set[int] = None) -> list[int]:
     df, successful_ids = build_master(
         input_folder,
         output_file,
@@ -399,6 +418,7 @@ def main(input_folder: Path, output_file: Path, input_categorized: Path, start_i
         start_index=start_index,
         max_files=max_files,
         checkpoint_every=checkpoint_every,
+        ciren_ids=ciren_ids
     )
     print(f" - Flattened {len(df)} rows to {output_file} masterfile")
     return successful_ids
