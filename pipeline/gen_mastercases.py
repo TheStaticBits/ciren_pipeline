@@ -12,24 +12,24 @@ import ciren_database.scrape_summary as scrape_summary
 import ciren_database.categorize as categorize
 import ciren_database.flatten_exports_to_master as flatten
 
-def gen_master_cases(abs_path: Path, case_nums: list[int]):
+def gen_master_cases(abs_path: Path, ciren_ids: set[int]):
     # 1. Run scrape.py
     print("1. Scraping crashes...")
-    scrape.main(abs_path / Path("outputs/CrashExports"), case_nums)
-    print("1. Scraping crashes complete!")
+    scrape.main(abs_path / Path("outputs/CrashExports"), ciren_ids)
+    print("1. Scraping crashes complete!\n\n")
 
     # Filter out cases that do not involve 2 vehicles.
-    case_nums = categorize.filter_num_vehicles(abs_path / Path("outputs/CrashExports"), case_nums)
+    ciren_ids = categorize.filter_num_vehicles(abs_path / Path("outputs/CrashExports"), ciren_ids)
 
     # 2. Run scrape_summaries.py on the rest of the cases
-    print("2\n\n. Scraping crash summaries...")
-    case_nums = scrape_summary.main(abs_path / Path("outputs/CrashExports"), abs_path / Path("outputs/ciren_crash_summaries.xlsx"), case_nums)
+    print("\n\n2. Scraping crash summaries...")
+    ciren_ids = scrape_summary.main(abs_path / Path("outputs/CrashExports"), abs_path / Path("outputs/ciren_crash_summaries.xlsx"), ciren_ids)
     print("2. Scraping crash summaries complete!")
 
     # 3. Use LLM API to categorize into one of the 14 available, filtering out bad cases
     # TODO
     print("\n\n3. Categorizing crashes...")
-    categorize.main(case_nums, abs_path / Path("outputs/ciren_crash_summaries.xlsx"), abs_path / Path("outputs/ciren_crash_summaries_categorized.xlsx"))
+    categorize.main(ciren_ids, abs_path / Path("outputs/ciren_crash_summaries.xlsx"), abs_path / Path("outputs/ciren_crash_summaries_categorized.xlsx"))
     print("3. Categorizing crashes complete!")
 
     # 4. Run flatten_exports_to_master.py, excluding cases that were not categorized in step 3
@@ -40,5 +40,5 @@ def gen_master_cases(abs_path: Path, case_nums: list[int]):
 
 if __name__ == "__main__":
     with open("input_cases.txt", "r") as file:
-        ciren_ids = [int(id) for id in file.read().split(" ")]
+        ciren_ids = {int(id) for id in file.read().split(" ")} # set of IDs
         gen_master_cases(Path(__file__).parent.parent, ciren_ids)

@@ -2,30 +2,26 @@
 Scrapes the crash summaries for each ciren case, and puts it in OUTPUT_FILE
 Used later to determine which crash scenario each case falls under
 """
+from __future__ import annotations
+
 import os
 import re
 import time
 
-import pyperclip
-from selenium import webdriver
-from selenium.common.exceptions import TimeoutException, WebDriverException
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-
 import openpyxl
 from openpyxl import load_workbook
 from pathlib import Path
+from typing import Any
 
 
 PAGE_LOAD_TIMEOUT_SECONDS = 45
 MAX_NAV_RETRIES = 2
 
 
-def build_driver(input_folder: list[int]) -> webdriver.Chrome:
+def build_driver(input_folder: Path | None = None):
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+
     options = Options()
     options.add_argument("--log-level=3")
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
@@ -42,6 +38,37 @@ def build_driver(input_folder: list[int]) -> webdriver.Chrome:
     d = webdriver.Chrome(options=options)
     d.set_page_load_timeout(PAGE_LOAD_TIMEOUT_SECONDS)
     return d
+
+
+def load_or_create_summary_workbook(output_file: Path) -> tuple[Any, Any]:
+    if output_file.exists():
+        wb = load_workbook(output_file)
+        ws = wb.active
+        return wb, ws
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["cirenid", "crash_summary"])
+    return wb, ws
+
+
+def existing_summary_case_ids(ws) -> set[int]:
+    header = [cell.value for cell in ws[1]]
+    try:
+        cirenid_col = header.index("cirenid") + 1
+    except ValueError:
+        cirenid_col = 1
+
+    existing: set[int] = set()
+    for row in ws.iter_rows(min_row=2, min_col=cirenid_col, max_col=cirenid_col):
+        value = row[0].value
+        if value is None:
+            continue
+        try:
+            existing.add(int(value))
+        except (TypeError, ValueError):
+            continue
+    return existing
 
 
 def extract_crash_summary_from_clipboard(raw_text: str) -> str:
@@ -71,7 +98,14 @@ def extract_crash_summary_from_clipboard(raw_text: str) -> str:
     return summary
 
 
-def copy_page_text(driver: webdriver.Chrome) -> str:
+def copy_page_text(driver) -> str:
+    import pyperclip
+    from selenium.webdriver.common.action_chains import ActionChains
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.common.keys import Keys
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.support.ui import WebDriverWait
+
     WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
     body = driver.find_element(By.TAG_NAME, "body")
     body.click()
@@ -83,7 +117,9 @@ def copy_page_text(driver: webdriver.Chrome) -> str:
     return pyperclip.paste()
 
 
-def navigate_with_retries(driver: webdriver.Chrome, url: str, retries: int = MAX_NAV_RETRIES) -> bool:
+def navigate_with_retries(driver, url: str, retries: int = MAX_NAV_RETRIES) -> bool:
+    from selenium.common.exceptions import TimeoutException, WebDriverException
+
     for attempt in range(1, retries + 1):
         try:
             driver.get(url)
@@ -99,21 +135,30 @@ def navigate_with_retries(driver: webdriver.Chrome, url: str, retries: int = MAX
 
 
 # returns cases that were successfully scraped
-def main(input_folder: Path, output_file: Path, ciren_ids: list[int]) -> list[int]:
-    if os.path.exists(output_file):
-        wb = load_workbook(output_file)
-        ws = wb.active
-    else:
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.append(["cirenid", "crash_summary"])
+def main(input_folder: Path, output_file: Path, ciren_ids: set[int]) -> set[int]:
+    input_folder = Path(input_folder) if input_folder else None
+    output_file = Path(output_file)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
 
+    wb, ws = load_or_create_summary_workbook(output_file)
+    existing_ids = existing_summary_case_ids(ws)
+    successful_cases: set[int] = set()
+    cases_to_scrape: set[int] = set()
+    for case_id in ciren_ids:
+        if int(case_id) in existing_ids:
+            print(f"Skipping CIRENID {case_id}: summary already exists in {output_file}")
+            successful_cases.add(case_id)
+        else:
+            cases_to_scrape.add(case_id)
 
-    successful_cases: list[int] = []
+    if not cases_to_scrape:
+        print(f"Done scraping summaries. All requested summaries already exist in {output_file}.")
+        return successful_cases
+
     driver = build_driver(input_folder)
     try:
-        for case_id in ciren_ids:
-            print(f"Processing CIRENID {case_id}...")
+        for i, case_id in enumerate(sorted(cases_to_scrape), 1):
+            print(f"[{i}/{len(cases_to_scrape)}] Processing CIRENID {case_id}...")
             case_url = f"https://crashviewer.nhtsa.dot.gov/ciren/details/{case_id}/ciren-summary-document"
 
             ok = navigate_with_retries(driver, case_url)

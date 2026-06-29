@@ -70,24 +70,27 @@ def _to_float(x) -> float | None:
         return None
 
 
-def _pick_series_for_veh(df: pd.DataFrame, vehno) -> pd.DataFrame:
+def _pick_series_for_veh(df: pd.DataFrame, vehno, strict: bool = False) -> pd.DataFrame:
     if df.empty:
         return df
     if "VEHNO" in df.columns and vehno is not None:
         local = df[df["VEHNO"].astype(str) == str(vehno)]
         if not local.empty:
             return local
+        if strict:
+            return df.iloc[0:0]
     return df
 
 
-def _compute_edr_precrash(edrpre: pd.DataFrame, vehno) -> dict[str, Any]:
-    local = _pick_series_for_veh(edrpre, vehno)
+def _compute_edr_precrash(edrpre: pd.DataFrame, vehno, prefix: str="") -> dict[str, Any]:
+    local = _pick_series_for_veh(edrpre, vehno, strict=True)
     if local.empty:
         return {
-            "edr_initial_speed_kmph": None,
-            "edr_impact_speed_kmph": None,
-            "edr_brake_applied": None,
-            "edr_steering_at_impact_deg": None,
+            f"{prefix}edr_initial_speed_kmph": None,
+            f"{prefix}edr_impact_speed_kmph": None,
+            f"{prefix}edr_brake_applied": None,
+            f"{prefix}edr_steering_at_impact_deg": None,
+            f"{prefix}edr_preimpact_accel_mps2": None,
         }
 
     def _series(pcode: int):
@@ -109,24 +112,32 @@ def _compute_edr_precrash(edrpre: pd.DataFrame, vehno) -> dict[str, Any]:
     initial_speed = speed_series[0][1] if speed_series else None
     pre_zero = [(t, v) for t, v in speed_series if t <= 0]
     impact_speed = pre_zero[-1][1] if pre_zero else (speed_series[-1][1] if speed_series else None)
+    if speed_series and initial_speed is not None and impact_speed is not None:
+        first_t = speed_series[0][0]
+        impact_t = pre_zero[-1][0] if pre_zero else speed_series[-1][0]
+        dt = impact_t - first_t
+        avg_accel = round(((impact_speed - initial_speed) / 3.6) / dt, 2) if dt > 0 else None
+    else:
+        avg_accel = None
     brake_applied = any(v not in (None, 0.0) for t, v in brake_series if t <= 0) if brake_series else None
     steering_at_impact = next((v for t, v in steering_series if t == 0.0), None)
 
     return {
-        "edr_initial_speed_kmph": initial_speed,
-        "edr_impact_speed_kmph": impact_speed,
-        "edr_brake_applied": brake_applied,
-        "edr_steering_at_impact_deg": steering_at_impact,
+        f"{prefix}edr_initial_speed_kmph": initial_speed,
+        f"{prefix}edr_impact_speed_kmph": impact_speed,
+        f"{prefix}edr_brake_applied": brake_applied,
+        f"{prefix}edr_steering_at_impact_deg": steering_at_impact,
+        f"{prefix}edr_preimpact_accel_mps2": avg_accel,
     }
 
 
-def _compute_edr_postcrash(edrpost: pd.DataFrame, vehno) -> dict[str, Any]:
-    local = _pick_series_for_veh(edrpost, vehno)
+def _compute_edr_postcrash(edrpost: pd.DataFrame, vehno, prefix: str="") -> dict[str, Any]:
+    local = _pick_series_for_veh(edrpost, vehno, strict=True)
     if local.empty:
         return {
-            "edr_max_delta_v_longitudinal_kmph": None,
-            "edr_max_delta_v_lateral_kmph": None,
-            "edr_total_delta_v_kmph": None,
+            f"{prefix}edr_max_delta_v_longitudinal_kmph": None,
+            f"{prefix}edr_max_delta_v_lateral_kmph": None,
+            f"{prefix}edr_total_delta_v_kmph": None,
         }
 
     def _max_abs_for_pcode(pcode: int) -> float | None:
@@ -148,9 +159,9 @@ def _compute_edr_postcrash(edrpost: pd.DataFrame, vehno) -> dict[str, Any]:
         total = None
 
     return {
-        "edr_max_delta_v_longitudinal_kmph": round(max_long, 2) if max_long is not None else None,
-        "edr_max_delta_v_lateral_kmph": round(max_lat, 2) if max_lat is not None else None,
-        "edr_total_delta_v_kmph": total,
+        f"{prefix}edr_max_delta_v_longitudinal_kmph": round(max_long, 2) if max_long is not None else None,
+        f"{prefix}edr_max_delta_v_lateral_kmph": round(max_lat, 2) if max_lat is not None else None,
+        f"{prefix}edr_total_delta_v_kmph": total,
     }
 
 
@@ -169,6 +180,7 @@ def flatten_one_file(xlsx_path: Path) -> dict[str, Any]:
     cirenid = _pick(cirencase, "CIRENID")
     caseid = _pick(cirencase, "CASEID") or _pick(crash, "CASEID")
     vehno = _pick(cirencase, "VEHNO")
+    challenger_vehno = 2 if vehno == 1 else 1 if vehno == 2 else None
 
     row: dict[str, Any] = {
         "source_file": xlsx_path.name,
@@ -201,7 +213,7 @@ def flatten_one_file(xlsx_path: Path) -> dict[str, Any]:
     )
 
     gv_local = _pick_series_for_veh(gv, vehno)
-    gv_oppose = _pick_series_for_veh(gv, 2 if vehno == 1 else 1)
+    gv_oppose = _pick_series_for_veh(gv, challenger_vehno, strict=True)
     vs_local = _pick_series_for_veh(vehspec, vehno)
 
     # Vehicle-centric fields for case vehicle
@@ -224,15 +236,18 @@ def flatten_one_file(xlsx_path: Path) -> dict[str, Any]:
             "vehicle_damage_plane": _pick(gv_local, "DAMPLANETEXT") or _pick(gv_local, "DAMPLANE"),
             "vehicle_damage_severity": _pick(gv_local, "DAMSEVTEXT") or _pick(gv_local, "DAMSEV"),
             "road_speed_limit_kmph": _pick(gv_local, "SPEEDLIMIT"),
+            "challenger_road_speed_limit_kmph": _pick(gv_oppose, "SPEEDLIMIT"),
         }
     )
 
     # EDR pre/post derived metrics
     row.update(_compute_edr_precrash(edrpre, vehno))
     row.update(_compute_edr_postcrash(edrpost, vehno))
+    row.update(_compute_edr_precrash(edrpre, challenger_vehno, "challenger_"))
+    row.update(_compute_edr_postcrash(edrpre, challenger_vehno, "challenger_"))
 
-    edrsumm_local = _pick_series_for_veh(edrsumm, vehno)
-    edrevent_local = _pick_series_for_veh(edrevent, vehno)
+    edrsumm_local = _pick_series_for_veh(edrsumm, vehno, strict=True)
+    edrevent_local = _pick_series_for_veh(edrevent, vehno, strict=True)
 
     row.update(
         {
@@ -282,6 +297,13 @@ def flatten_one_file(xlsx_path: Path) -> dict[str, Any]:
             "gv_tree_pole_diameter_cm": _pick(gv_local, "TREEPOLE"),
             "gv_num_vehicles": _pick(crash, "VEHICLES"),
             "gv_num_events": _pick(crash, "EVENTS"),
+            "challenger_gv_delta_v_best_estimate_kmph": _pick(gv_oppose, "DVBES"),
+            "challenger_gv_delta_v_total_kmph": _pick(gv_oppose, "DVTOTAL"),
+            "challenger_gv_delta_v_longitudinal_kmph": _pick(gv_oppose, "DVLONG"),
+            "challenger_gv_delta_v_lateral_kmph": _pick(gv_oppose, "DVLAT"),
+            "challenger_gv_pre_crash_maneuver": _pick(gv_oppose, "MANEUVERTEXT") or _pick(gv_oppose, "MANEUVER"),
+            "challenger_gv_crash_type": _pick(gv_oppose, "CRASHTYPETEXT") or _pick(gv_oppose, "CRASHTYPE"),
+            "challenger_gv_crash_config": _pick(gv_oppose, "CRASHCONFTEXT") or _pick(gv_oppose, "CRASHCONF"),
         }
     )
 

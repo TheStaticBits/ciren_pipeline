@@ -1,20 +1,11 @@
 # LLM configuration, usage
 # + filtering (exclude cases with not exactly 2 vehicles)
 
-import os, time, pyperclip, pandas as pd
+from __future__ import annotations
+
+import os, time, pandas as pd
 from pathlib import Path
 import ciren_database.flatten_exports_to_master as flatten
-
-from selenium import webdriver
-from selenium.common.exceptions import TimeoutException, WebDriverException
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.keys import Keys
 
 VALID = ["None", "cut_in", "car_following", "lane_departure_same", "lane_departure_opposite", 
          "left_turn_straight", "left_turn_turn", "right_turn_straight", "right_turn_turn",
@@ -25,6 +16,27 @@ TRIES = 3
 USE_CHROME_PROFILE = False
 CHROME_PROFILE = "/home/mzjia/chrome-profile/google-chrome"
 CHROME_BINARY = "/usr/bin/google-chrome"
+
+
+def load_existing_categorizations(output_file: Path) -> tuple[pd.DataFrame, set[int]]:
+    if not output_file.exists():
+        return pd.DataFrame(columns=["cirenid", "scenario", "crash_summary"]), set()
+
+    existing = pd.read_excel(output_file)
+    existing = existing.loc[:, ~existing.columns.astype(str).str.startswith("Unnamed")]
+    if "cirenid" not in existing.columns:
+        return pd.DataFrame(columns=["cirenid", "scenario", "crash_summary"]), set()
+
+    ids = {
+        int(cirenid)
+        for cirenid in existing["cirenid"].dropna()
+    }
+    return existing, ids
+
+
+def save_categorizations(output_file: Path, rows: list[dict]) -> None:
+    output = pd.DataFrame(rows)
+    output.to_excel(output_file, index=False)
 
 def get_prompt(cirenid: int, summary: str) -> str:
     return f"""Categorize the following car crash, found at: https://crashviewer.nhtsa.dot.gov/ciren/details/{cirenid}/ciren-summary-document. The summary of this case is pasted here from the link above:
@@ -51,29 +63,29 @@ def get_prompt(cirenid: int, summary: str) -> str:
 
 # Finds each CrashExport-[id]-[date].xlsx file and tests if it has the appropriate number of vehicles.
 # returns the ciren_ids that have 2 vehicles.
-def filter_num_vehicles(folder: Path, ciren_ids: list[int]) -> list[int]:
-    final_ciren_ids: list[int] = []
+def filter_num_vehicles(folder: Path, ciren_ids: set[int]) -> set[int]:
+    final_ciren_ids: set[int] = set()
 
     print("Filtering cases without 2 vehicles...")
     
     # iterate though the ciren_ids and check if the VEHICLES value is 2.
-    # if not, delete the case file.
+    # only add it to final_ciren_ids if it has 2
     for id in ciren_ids:
         file = list(folder.glob(f"CrashExport-{id}-*.xlsx"))[0]
         crash_sheet = flatten._read_sheet(file, "CRASH")
         num_vehicles = flatten._pick(crash_sheet, "VEHICLES", default=2)
         
         if num_vehicles == 2:
-            final_ciren_ids.append(id)
-        else:
-            os.remove(file) # deletes case file
+            final_ciren_ids.add(id)
 
     print(f"Filtered {len(ciren_ids) - len(final_ciren_ids)} cases that do not deal with exactly 2 vehicles!")
     return final_ciren_ids
 
 
-def wait_for_editable_element(driver: webdriver.Chrome, timeout: int = 30):
-    def find_editable_element(driver: webdriver.Chrome):
+def wait_for_editable_element(driver, timeout: int = 30):
+    from selenium.webdriver.support.ui import WebDriverWait
+
+    def find_editable_element(driver):
         return driver.execute_script(
             """
             const selectors = ['textarea', 'input', '[contenteditable="true"]'];
@@ -112,8 +124,10 @@ def wait_for_editable_element(driver: webdriver.Chrome, timeout: int = 30):
 
     return WebDriverWait(driver, timeout).until(find_editable_element)
 
-def wait_for_response(num: int, driver: webdriver.Chrome, timeout: int = 180):
-    def find_response(driver: webdriver.Chrome):
+def wait_for_response(num: int, driver, timeout: int = 180):
+    from selenium.webdriver.support.ui import WebDriverWait
+
+    def find_response(driver):
         result = driver.execute_script(
             """
             const results = [];
@@ -142,8 +156,10 @@ def wait_for_response(num: int, driver: webdriver.Chrome, timeout: int = 180):
 
     return WebDriverWait(driver, timeout).until(find_response)
 
-def wait_for_finish_to_send(driver: webdriver.Chrome):
-    def test_mic(driver: webdriver.Chrome):
+def wait_for_finish_to_send(driver):
+    from selenium.webdriver.support.ui import WebDriverWait
+
+    def test_mic(driver):
         return driver.execute_script(
             """
             const button = document.querySelector('[aria-label="Send message"]');
@@ -154,7 +170,31 @@ def wait_for_finish_to_send(driver: webdriver.Chrome):
 
 # Assumes you have Gemini Pro, hooking into your browser,
 # typing prompts and receiving categorizations 10 at a time.    
-def main(ciren_ids: list[int], input_summaries_file: Path, output_file: Path):
+def main(ciren_ids: list[int] | set[int] | None, input_summaries_file: Path, output_file: Path):
+    output_file = Path(output_file)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    existing_df, existing_ids = load_existing_categorizations(output_file)
+
+    # load input summaries
+    df = pd.read_excel(input_summaries_file)
+    cases_to_categorize = set()
+    for case in df.itertuples():
+        case_id = int(case.cirenid)
+        if case_id not in ciren_ids:
+            continue
+        if case_id in existing_ids:
+            print(f"Skipping case {case_id}: already categorized in {output_file}")
+            continue
+        cases_to_categorize.add(case)
+
+    if not cases_to_categorize:
+        print(f"Categorization complete. All requested cases are already categorized in {output_file}.")
+        return ciren_ids
+
+    import pyperclip
+    from selenium import webdriver
+    from selenium.webdriver.common.keys import Keys
 
     options = webdriver.ChromeOptions()
     if USE_CHROME_PROFILE:
@@ -166,24 +206,21 @@ def main(ciren_ids: list[int], input_summaries_file: Path, output_file: Path):
     driver.get("https://gemini.google.com/app")
     time.sleep(1.0)
 
-    # load input summaries
-    df = pd.read_excel(input_summaries_file)
-
     # find the actual editable element inside Gemini's custom input component
     text_box = wait_for_editable_element(driver)
     text_box.click()
 
-    result = []
+    result = existing_df.to_dict("records")
     curr_response = 1
 
-    # # iterate through all cases
-    for case in df.itertuples():
-        if ciren_ids and case.cirenid not in ciren_ids:
-            continue
+    # iterate through all cases
+    for i, case in enumerate(sorted(cases_to_categorize), 1):
+        case_id = int(case.cirenid)
+        print(f"[{i}/{len(cases_to_categorize)}] Categorizing {case_id}...")
 
         for _ in range(TRIES):
             # send prompt
-            p = get_prompt(case.cirenid, case.crash_summary)
+            p = get_prompt(case_id, case.crash_summary)
             pyperclip.copy(p) # copy prompt into clipboard
             text_box.click()
             text_box.send_keys(Keys.CONTROL, "v") # paste
@@ -196,21 +233,19 @@ def main(ciren_ids: list[int], input_summaries_file: Path, output_file: Path):
 
             # validate response
             if not response or response not in VALID: continue
-            if response and response == "None": break
-
+            print(f"       Result: {response}")
             result.append({
-                "cirenid": case.cirenid,
-                "scenario": response,
+                "cirenid": case_id,
+                "scenario": str(response),
                 "crash_summary": case.crash_summary,
             })
 
             # output result to file
-            output = pd.DataFrame(result)
-            output.to_excel(output_file)
+            save_categorizations(output_file, result)
             break
 
         else:
-            print(f"[WARNING] Skipping case {case.cirenid}. Response: {response}")
+            print(f"[WARNING] Skipping case {case_id}. Response: {response}")
 
 
 if __name__ == "__main__":

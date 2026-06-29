@@ -1,15 +1,8 @@
 """
 Downloads the .xlsx case data for each cirenid
 """
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
 import time
 import os
-import time
 from pathlib import Path
 
 def wait_for_downloads(download_folder, timeout=120):
@@ -22,13 +15,42 @@ def wait_for_downloads(download_folder, timeout=120):
         time.sleep(1)
     return False
 
+
+def _existing_case_export(output_folder: Path, case_id: int) -> Path | None:
+    matches = sorted(output_folder.glob(f"CrashExport-{case_id}-*.xlsx"))
+    return matches[0] if matches else None
+
+
 # Returns list of ciren case IDs that were processed successfully
-def main(output_folder: Path, ciren_ids: list[int]) -> list[int]:
+def main(output_folder: Path, ciren_ids: set[int]) -> set[int]:
+    output_folder = Path(output_folder)
+    os.makedirs(output_folder, exist_ok=True)
+
+    successes = set()
+    cases_to_download = set()
+    for case_id in ciren_ids:
+        existing = _existing_case_export(output_folder, case_id)
+        if existing is not None:
+            print(f"Skipping CIRENID {case_id}: already exists ({existing.name})")
+            successes.add(case_id)
+        else:
+            cases_to_download.add(case_id)
+
+    if not cases_to_download:
+        print(f"Scrape complete. All requested crash exports already exist in {output_folder}.")
+        return successes
+
+    from selenium import webdriver
+    from selenium.common.exceptions import TimeoutException
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.support.ui import WebDriverWait
+
     options = Options()
     options.add_argument("--log-level=3")
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
-    os.makedirs(output_folder, exist_ok=True)
     options.add_experimental_option(
         "prefs",
         {
@@ -40,9 +62,8 @@ def main(output_folder: Path, ciren_ids: list[int]) -> list[int]:
 
     driver = webdriver.Chrome(options=options)
 
-    successes = []
-    for case_id in ciren_ids:
-        print(f"Processing CIRENID {case_id}")
+    for i, case_id in enumerate(sorted(cases_to_download), 1):
+        print(f"[{i}/{len(cases_to_download)}] Processing CIRENID {case_id}...")
         case_url = f"https://crashviewer.nhtsa.dot.gov/ciren/details/{case_id}/ciren-summary-document"
         driver.get(case_url)
 

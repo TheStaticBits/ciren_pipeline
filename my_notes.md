@@ -158,6 +158,7 @@ ros2 param get /planning/scenario_planning/motion_velocity_smoother stop_at_goal
 - Changed JOSM map speed limits (and position?)
 
 ## Notes from Tuesday, June 23rd
+- Update gen_case_parameters.py to more accurately fit the cases
 - Adjust time that the speed is set so that it is approximately the correct speed 5 seconds before collision
 - Change road speed limits to not impact vehicle speed
 - Run 50-100 cases

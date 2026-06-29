@@ -354,7 +354,12 @@ async def run_all(verbose: bool, params_json: Path, av_locs_json: Path, master_c
     # run all cases
     for index, case in enumerate(data, start=1):
         print(f"\n\n ---- Case {index}/{len(data)}: {case['cirenid']} ({case['type']}) ---- ")
-        await run_case(case, autoware, master_df, av_locs, delta_v_frames, skipped, verbose, dlt_path, output_dv_file)
+        input("Press enter to run the case. ")
+        
+        while True:
+            await run_case(case, autoware, master_df, av_locs, delta_v_frames, skipped, verbose, dlt_path, output_dv_file)
+            if input("Run again (y/n)?") != "y": break
+        
 
     # Print skipped cases
     print(f" - SKIPPED CASES:\n{skipped}\n")
