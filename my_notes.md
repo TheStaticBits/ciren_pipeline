@@ -165,7 +165,11 @@ ros2 param get /planning/scenario_planning/motion_velocity_smoother stop_at_goal
 - Run 50-100 cases
 
 
-
-##
-- Find issue with autoware that slows it down to around 42 kph on the long road
-- Fix turns, fix vehicle encroachment for not resulting in collisions
+## Notes from Tuesday, June 23rd
+- Create slide based on how the pipeline works, how the gen_case_parameters works, etc.
+- Adjust and fix the remaining issues with the pipeline (simulation breaking etc.)
+  - Find issue with autoware that slows it down to around 42 kph on the long road
+  - Fix turns (too high speed, speed set too late)
+  - Fix vehicle encroachment for not resulting in collisions (delay longer)
+  - Fix lane departure opposite BV not moving sometimes
+- Send resulting 50 cases of data injury risks to Anne
