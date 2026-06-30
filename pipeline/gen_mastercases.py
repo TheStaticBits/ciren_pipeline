@@ -38,7 +38,11 @@ def gen_master_cases(abs_path: Path, ciren_ids: set[int]):
     print("4. Finished flattening crash data!")
 
 
-if __name__ == "__main__":
+def main():
     with open("input_cases.txt", "r") as file:
         ciren_ids = {int(id) for id in file.read().split(" ")} # set of IDs
         gen_master_cases(Path(__file__).parent.parent, ciren_ids)
+
+
+if __name__ == "__main__":
+    main()

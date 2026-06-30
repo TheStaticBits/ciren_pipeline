@@ -12,7 +12,30 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 DLT_PATH = Path("/home/mzjia/lab/Behavioral-Safety-Assessment/Driver-Licensing-Test")
 DLT_CASE_TIMEOUT_SEC = 180.0
 DLT_MAX_ATTEMPTS = 10
-AV_SPEED_SET_DELAY_SEC = 7.0
+
+# delay in seconds from the start of the simulation for when to set the AV's speed to the correct speed
+AV_SET_SPEED_DELAYS = {
+    "left_turn_straight": 4,
+    "car_following": 30,
+    "cut_in": 7,
+    "lane_departure_same": 7,
+    "lane_departure_opposite": 7,
+    "left_turn_turn": 7,
+    "right_turn_straight": 7,
+    "right_turn_turn": 7,
+    "vehicle_encroachment": 7
+}
+
+AV_MAX_SPEED_BOUNDS = {
+    "left_turn_straight": (0, 10)
+}
+
+# This makes it so that:
+# - it prints the case_parameters.json values before a case
+# - you have to press enter before a case to run it
+# - after the case, it prints the resulting values 5 seconds before the crash
+# - you are given the option to run a case again afterwards
+INDIVIDUAL_TESTING_MODE = False
 
 # av_locations.json information:
 # These numbers were taken from MCity's autoware repo,
@@ -148,16 +171,20 @@ async def run_dlt_until_collision_or_timeout(
         speed_was_set = False
 
         while time.monotonic() < deadline:
-            if (
-                not speed_was_set
-                and time.monotonic() - simulation_start >= AV_SPEED_SET_DELAY_SEC
-            ):
+            delay = AV_SET_SPEED_DELAYS[case["type"]]
+            if not speed_was_set and time.monotonic() - simulation_start >= delay:
                 speed_was_set = True
+
+                if case["type"] in AV_MAX_SPEED_BOUNDS:
+                    lower, upper = AV_MAX_SPEED_BOUNDS[case["type"]]
+                    desired_speed_mps = max(lower, min(upper, desired_speed_mps))
+
                 speed_set = await autoware.set_simulator_speed(desired_speed_mps)
+                
                 if not speed_set:
                     print(
                         f"[WARNING] Case {case['cirenid']} failed to set AV speed "
-                        f"to {desired_speed_mps:.2f} m/s at {AV_SPEED_SET_DELAY_SEC:.1f}s."
+                        f"to {desired_speed_mps:.2f} m/s at {delay:.1f}s."
                     )
 
             if record_has_collision(record_path):
@@ -305,6 +332,21 @@ async def run_case(
 
     print(f"- Finished case {case['cirenid']}!\n\n")
 
+    if INDIVIDUAL_TESTING_MODE:
+        test_data = Path(f"{dlt_path}/output/Autoware.Universe/test_data/test_round_1/{case['type']}/0.csv")
+        try:
+            test_df = pd.read_csv(test_data)
+            timestamps = pd.to_numeric(test_df["timestamp"], errors="coerce")
+            valid_timestamps = timestamps[timestamps.notna() & (timestamps != 0)]
+            collision_timestamp = valid_timestamps.iloc[-1]
+            target_timestamp = collision_timestamp - 5.0
+            target_timestamps = valid_timestamps[valid_timestamps <= target_timestamp]
+            target_index = target_timestamps.index[-1] if not target_timestamps.empty else valid_timestamps.index[0]
+            print(f"- Data values 5 seconds before collision for case {case['cirenid']}:")
+            print(test_df.loc[target_index].to_string(float_format=lambda value: f"{value:.3f}"))
+        except (FileNotFoundError, pd.errors.EmptyDataError, KeyError, IndexError) as exc:
+            print(f"[WARNING] Could not print data values 5 seconds before collision for case {case['cirenid']}: {exc}")
+
     # save to csv
     results_df = pd.DataFrame(delta_v_frames)
     results_df.to_csv(output_dv_file, index=False)
@@ -330,8 +372,32 @@ def run_mcity_cosim():
     return process
 
 
+def load_delta_v_frames(output_dv_file: Path) -> list[dict]:
+    try:
+        delta_v_df = pd.read_csv(output_dv_file)
+    except FileNotFoundError:
+        return []
+    except pd.errors.EmptyDataError:
+        print(f"[WARNING] Existing {output_dv_file} is empty. Starting delta-v results from scratch.")
+        return []
+
+    return delta_v_df.to_dict("records")
+
+
+def completed_delta_v_case_ids(delta_v_frames: list[dict]) -> set[int]:
+    completed_ids = set()
+    for row in delta_v_frames:
+        cirenid = row.get("cirenid")
+        if cirenid is None or pd.isna(cirenid):
+            continue
+        completed_ids.add(int(cirenid))
+    return completed_ids
+
+
 async def run_all(verbose: bool, params_json: Path, av_locs_json: Path, master_cases_file: Path, dlt_path: Path, output_dv_file: Path, risk_model_file: Path, output_injury_file: Path):
-    delta_v_frames: list = []
+    output_dv_file = Path(output_dv_file)
+    delta_v_frames: list = load_delta_v_frames(output_dv_file)
+    completed_case_ids = completed_delta_v_case_ids(delta_v_frames)
     skipped: list[int] = [] # list of the cirenid of skipped cases
 
     # load parameters json file
@@ -352,13 +418,32 @@ async def run_all(verbose: bool, params_json: Path, av_locs_json: Path, master_c
     run_mcity_cosim()
 
     # run all cases
+    skip_to = None
     for index, case in enumerate(data, start=1):
-        print(f"\n\n ---- Case {index}/{len(data)}: {case['cirenid']} ({case['type']}) ---- ")
-        input("Press enter to run the case. ")
+        case_id = int(case["cirenid"])
+        if skip_to and case_id != int(skip_to):
+            continue
+
+        if case_id in completed_case_ids:
+            print(f" ---- Skipping case {case_id}; delta-v results already exist.")
+            continue
+
+        print(f"\n\n ---- [{index}/{len(data)}] Case {case_id}: {case['type']} ---- ")
+
+        if INDIVIDUAL_TESTING_MODE:
+            print(case)
+            skip_to = input("Press enter to run the case, or type a case ID to skip to it. \n")
+            if skip_to and case_id != int(skip_to):
+                continue
         
         while True:
+            result_count_before = len(delta_v_frames)
             await run_case(case, autoware, master_df, av_locs, delta_v_frames, skipped, verbose, dlt_path, output_dv_file)
-            if input("Run again (y/n)?") != "y": break
+            if len(delta_v_frames) > result_count_before:
+                completed_case_ids.add(case_id)
+
+            if not INDIVIDUAL_TESTING_MODE or input("Run again (y/n)? ") != "y":
+                break
         
 
     # Print skipped cases
@@ -369,6 +454,7 @@ async def run_all(verbose: bool, params_json: Path, av_locs_json: Path, master_c
 
 
 async def main():
+    rclpy.init()
     await run_all(
         verbose=True,
         params_json="outputs/case_parameters.json",
@@ -382,5 +468,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    rclpy.init()
     asyncio.run(main())

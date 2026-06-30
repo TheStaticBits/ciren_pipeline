@@ -19,7 +19,7 @@ python load_mcity_digital_twin.py
 - ros2 launch autoware_launch should be run in `(base)` venv which is on by default, using:
 ```bash
 # adjusted map
-ros2 launch autoware_launch planning_simulator.launch.xml map_path:=$HOME/lab/ciren_pipeline/map vehicle_model:=sample_vehicle sensor_model:=sample_sensor_kit lanelet2_map_file:=lanelet2_mcity.osm
+ros2 launch autoware_launch planning_simulator.launch.xml map_path:=$HOME/lab/ciren_pipeline/map vehicle_model:=sample_vehicle sensor_model:=sample_sensor_kit lanelet2_map_file:=lanelet2_mcity_stable.osm
 
 # their map
 ros2 launch autoware_launch planning_simulator.launch.xml map_path:=$HOME/lab/autoware/map vehicle_model:=sample_vehicle sensor_model:=sample_sensor_kit lanelet2_map_file:=lanelet2_mcity.osm
@@ -141,6 +141,7 @@ clarification questions prior to May 26th meeting:
 - If that does not work and we can't adjust that manually, see if there is a way to set the AV at a location 5 seconds before the crash directly, with a set speed already. Then, see if we can change how the BV behaves to fast-forward it to 5 seconds before the crash. This would allow us to skip to the moment before the crash and see how the AV handles it.
 
 ### [JOSM](https://chatgpt.com/c/6a395a33-37fc-83ea-8a2c-eff74d755476)
+- Run with `josm` in terminal.
 - Open filter by `Alt + Shift + F`, type `type:node` and hit `select`
 - Toggle between freehand and square select by pressing `S`
 - Select roads and press `Ctrl + F` and type `type:relation type=lanelet parent selected` to get the lanelet options
@@ -162,3 +163,9 @@ ros2 param get /planning/scenario_planning/motion_velocity_smoother stop_at_goal
 - Adjust time that the speed is set so that it is approximately the correct speed 5 seconds before collision
 - Change road speed limits to not impact vehicle speed
 - Run 50-100 cases
+
+
+
+##
+- Find issue with autoware that slows it down to around 42 kph on the long road
+- Fix turns, fix vehicle encroachment for not resulting in collisions

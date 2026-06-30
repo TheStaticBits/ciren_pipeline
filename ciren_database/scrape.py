@@ -90,7 +90,7 @@ def main(output_folder: Path, ciren_ids: set[int]) -> set[int]:
         except Exception as exc:
             print(f"  Skipped {case_id}: click failed ({exc})")
         else:
-            successes.append(case_id)
+            successes.add(case_id)
 
     driver.quit()
     print(f"Scrape complete. Crash data exported to {output_folder}.")

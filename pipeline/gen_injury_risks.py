@@ -13,9 +13,9 @@ import pipeline.parts.gen_case_parameters as gen_case_parameters
 import pipeline.parts.run_cases as run_cases
 
 # runs gen_case_parameters and then run_cases.py
-async def gen_injury_risks():
+async def main():
     gen_case_parameters.main()
     await run_cases.main()
 
 if __name__ == "__main__":
-    asyncio.run(gen_injury_risks())
+    asyncio.run(main())

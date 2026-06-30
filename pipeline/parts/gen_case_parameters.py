@@ -23,7 +23,7 @@ BOUND_SPEED = True
 DISTANCE_BOUNDS_M = {
     "cut_in": (1.0, 25.0),
     "lane_departure_same": (1.0, 25.0),
-    "lane_departure_opposite": (20.0, 50.0),
+    "lane_departure_opposite": (20.0, 70.0),
     "left_turn_straight": (15.0, 50.0),
     "left_turn_turn": (25.0, 60.0),
     "right_turn_straight": (5.0, 30.0),
@@ -265,7 +265,7 @@ def gen_single_params(row) -> dict[str, float]:
         # starts departing; dis is the trigger gap and ratio is lane intrusion.
         params["relative sp"] = _same_direction_relative_speed(row)
         params["dis"] = _distance_from_severity(row, row.scenario)
-        params["ratio"] = _lane_change_ratio(row, 0.3, 0.7, 0.5)
+        params["ratio"] = 1
         params["direction"] = "same"
 
     elif row.scenario == "lane_departure_opposite":
@@ -273,7 +273,7 @@ def gen_single_params(row) -> dict[str, float]:
         # is the trigger gap and ratio is lane intrusion.
         params["relative sp"] = _opposite_direction_relative_speed(row)
         params["dis"] = _distance_from_severity(row, row.scenario)
-        params["ratio"] = _lane_change_ratio(row, 0.4, 0.7, 0.55)
+        params["ratio"] = 1
         params["direction"] = "opposite"
 
     elif row.scenario == "left_turn_straight":
