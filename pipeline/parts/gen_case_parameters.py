@@ -19,6 +19,11 @@ SPEED_BOUNDS_MPS = {
 }
 BOUND_SPEED = True
 
+# Global severity knob for generated DLT parameters.
+# 1.0 preserves the raw crash-derived severity; values above/below 1.0 make
+# severity-derived case parameters more/less aggressive across all scenarios.
+CRASH_SEVERITY_SCALE = 1.0
+
 # DLT scenario distance/lateral-offset limits copied from each scenario's config.yaml.
 DISTANCE_BOUNDS_M = {
     "cut_in": (1.0, 25.0),
@@ -71,6 +76,10 @@ def _first_number(row, names: list[str], allow_zero: bool = True):
 # Keep a generated parameter inside the DLT scenario's modeled range.
 def _clamp(val: float, lower: float, upper: float) -> float:
     return min(max(val, lower), upper)
+
+# Apply the global crash severity scale while keeping severity in the 0..1 range.
+def _scaled_severity(val: float) -> float:
+    return _clamp(val * CRASH_SEVERITY_SCALE, 0.0, 1.0)
 
 # Round emitted JSON parameter values to two decimals for readability.
 def _round_param(val: float) -> float:
@@ -128,21 +137,21 @@ def _severity_score(row) -> float:
         allow_zero=False,
     )
     if delta_v is not None:
-        components.append(_clamp(delta_v / 80.0, 0.0, 1.0))
+        components.append(_scaled_severity(delta_v / 80.0))
 
     cmax = _first_number(row, ["primary_cmax_cm"], allow_zero=False)
     if cmax is not None:
-        components.append(_clamp(cmax / 80.0, 0.0, 1.0))
+        components.append(_scaled_severity(cmax / 80.0))
 
     crush_depth = _first_number(row, ["primary_crush_depth_cm"], allow_zero=False)
     if crush_depth is not None:
-        components.append(_clamp(crush_depth / 80.0, 0.0, 1.0))
+        components.append(_scaled_severity(crush_depth / 80.0))
 
     direct_crush = _first_number(row, ["primary_direct_crush_cm"], allow_zero=False)
     if direct_crush is not None:
-        components.append(_clamp(direct_crush / 180.0, 0.0, 1.0))
+        components.append(_scaled_severity(direct_crush / 180.0))
 
-    return max(components) if components else 0.6
+    return max(components) if components else _scaled_severity(0.6)
 
 # Estimate subject-vehicle speed loss before impact from EDR initial and impact speed.
 def _speed_loss_mps(row) -> float | None:
@@ -249,7 +258,7 @@ def gen_single_params(row) -> dict[str, float]:
     if row.scenario == "cut_in":
         # Cut-in mainly responds to the trigger gap.
         params["relative sp"] = _same_direction_relative_speed(row)
-        params["dis"] = _distance_from_severity(row, row.scenario)
+        params["dis"] = _distance_from_severity(row, row.scenario) / CRASH_SEVERITY_SCALE
         params["ratio"] = 1 # Ratio does not affect this case.
         params["direction"] = "same"
 
@@ -257,14 +266,14 @@ def gen_single_params(row) -> dict[str, float]:
         # sp is the challenger target speed before braking, acc controls how it
         # reaches that speed, and dec controls the stopping phase.
         params["sp"] = _challenger_speed_mps(row, row.scenario)
-        params["acc"] = _car_following_acc(row)
-        params["dec"] = _car_following_dec(row)
+        params["acc"] = _car_following_acc(row) * CRASH_SEVERITY_SCALE
+        params["dec"] = _car_following_dec(row) * CRASH_SEVERITY_SCALE
 
     elif row.scenario == "lane_departure_same":
         # Higher relative sp makes the same-direction challenger slower when it
         # starts departing; dis is the trigger gap and ratio is lane intrusion.
         params["relative sp"] = _same_direction_relative_speed(row)
-        params["dis"] = _distance_from_severity(row, row.scenario)
+        params["dis"] = _distance_from_severity(row, row.scenario) / CRASH_SEVERITY_SCALE
         params["ratio"] = 1
         params["direction"] = "same"
 
@@ -272,44 +281,45 @@ def gen_single_params(row) -> dict[str, float]:
         # Opposite-direction relative sp is AV speed plus challenger speed; dis
         # is the trigger gap and ratio is lane intrusion.
         params["relative sp"] = _opposite_direction_relative_speed(row)
-        params["dis"] = _distance_from_severity(row, row.scenario)
+        params["dis"] = _distance_from_severity(row, row.scenario) / CRASH_SEVERITY_SCALE
         params["ratio"] = 1
         params["direction"] = "opposite"
 
     elif row.scenario == "left_turn_straight":
         # dis is the initial longitudinal timing distance; sp is the BV's
         # constant speed through the simulation.
-        params["dis"] = _distance_from_severity(row, row.scenario)
+        params["dis"] = _distance_from_severity(row, row.scenario) / CRASH_SEVERITY_SCALE
         params["sp"] = _challenger_speed_mps(row, row.scenario)
 
     elif row.scenario == "left_turn_turn":
         # dis controls how close the AV is to turning when the challenger starts;
         # sp is the challenger speed while crossing the intersection.
-        params["dis"] = _distance_from_severity(row, row.scenario)
+        params["dis"] = _distance_from_severity(row, row.scenario) / CRASH_SEVERITY_SCALE
         params["sp"] = _challenger_speed_mps(row, row.scenario)
 
     elif row.scenario == "right_turn_straight":
         # dis is how far the AV has traveled when the challenger starts; values
         # too low or high can miss the collision path. sp is challenger speed.
-        params["dis"] = _distance_from_severity(row, row.scenario)
+        params["dis"] = _distance_from_severity(row, row.scenario) / CRASH_SEVERITY_SCALE
         params["sp"] = _challenger_speed_mps(row, row.scenario)
 
     elif row.scenario == "right_turn_turn":
         # dis is the AV distance from the intersection when the challenger
         # starts; sp is challenger travel speed.
-        params["dis"] = _distance_from_severity(row, row.scenario)
+        params["dis"] = _distance_from_severity(row, row.scenario) / CRASH_SEVERITY_SCALE
         params["sp"] = _challenger_speed_mps(row, row.scenario)
 
     elif row.scenario == "vehicle_encroachment":
         # dis is the in-lane lateral offset, positive east; angle is positive
         # clockwise.
-        params["dis"] = _encroachment_distance(row)
+        params["dis"] = _encroachment_distance(row) / CRASH_SEVERITY_SCALE
         params["angle"] = _encroachment_angle(row)
 
     else:
         print(f"[WARNING] {row.scenario} scenarios are currently not simulated (case {row.cirenid})")
     
-    return params
+    # round params to 2 digits
+    return { key: float(round(value, 2)) if type(value) != str else value for key, value, in params.items() }
 
 
 # Write JSON as an array with one compact case object per line.

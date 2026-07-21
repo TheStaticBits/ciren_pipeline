@@ -20,7 +20,7 @@ AV_SET_SPEED_DELAYS = {
     "cut_in": 7,
     "lane_departure_same": 7,
     "lane_departure_opposite": 7,
-    "left_turn_turn": 7,
+    "left_turn_turn": 10,
     "right_turn_straight": 7,
     "right_turn_turn": 7,
     "vehicle_encroachment": 7
