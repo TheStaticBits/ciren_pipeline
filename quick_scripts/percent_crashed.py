@@ -19,8 +19,12 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CASE_PARAMETERS = REPO_ROOT / "outputs/case_parameters.json"
 DEFAULT_DELTA_V_RESULTS = REPO_ROOT / "outputs/delta_v_results.csv"
-DEFAULT_OUTPUT_CSV = REPO_ROOT / "outputs/percent_crashed_by_type.csv"
-DEFAULT_OUTPUT_PLOT = REPO_ROOT / "outputs/percent_crashed_by_type.png"
+DEFAULT_OUTPUT_CSV = (
+    REPO_ROOT / "outputs/visualizations/percent_crashed_by_type.csv"
+)
+DEFAULT_OUTPUT_PLOT = (
+    REPO_ROOT / "outputs/visualizations/percent_crashed_by_type.png"
+)
 
 
 def _load_case_parameters(path: Path) -> list[dict]:

@@ -22,7 +22,7 @@ BOUND_SPEED = True
 # Global severity knob for generated DLT parameters.
 # 1.0 preserves the raw crash-derived severity; values above/below 1.0 make
 # severity-derived case parameters more/less aggressive across all scenarios.
-CRASH_SEVERITY_SCALE = 1.0
+CRASH_SEVERITY_SCALE = 1.2
 
 # DLT scenario distance/lateral-offset limits copied from each scenario's config.yaml.
 DISTANCE_BOUNDS_M = {

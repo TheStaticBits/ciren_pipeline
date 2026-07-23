@@ -23,8 +23,8 @@ import ciren_database.calculate_injury_risks as calc_risk
 
 master_file = "outputs/master_cases.xlsx"
 model_file = "ciren_database/CISS_injury_models_20210415.xlsx"
-output_csv = "outputs/delta_v_injury_risk_comparison.csv"
-output_plot = "outputs/delta_v_injury_risk_comparison.png"
+output_csv = "outputs/visualizations/delta_v_injury_risk_comparison.csv"
+output_plot = "outputs/visualizations/delta_v_injury_risk_comparison.png"
 
 key_cols = ["cirenid", "case"]
 risk_cols = ["Head_Risk", "Chest_Risk", "LowerExtremity_Risk"]
@@ -115,6 +115,8 @@ def main() -> None:
     for risk_col in risk_cols:
         comp[f"{risk_col}_diff"] = comp[f"{risk_col}_file2"] - comp[f"{risk_col}_file1"]
 
+    _path(output_csv).parent.mkdir(parents=True, exist_ok=True)
+    _path(output_plot).parent.mkdir(parents=True, exist_ok=True)
     comp.to_csv(_path(output_csv), index=False)
     _plot_comparison(comp)
 
